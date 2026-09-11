@@ -250,7 +250,7 @@ export function EditorPage() {
                         </label>
                         <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>BIO</span>
-                          <textarea {...sx(styles.input, styles.textarea)} name="bio" maxlength="320">{item().bio}</textarea>
+                          <textarea {...sx(styles.input, styles.textarea)} name="bio" maxlength="320" value={item().bio} />
                         </label>
                         <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>AVATAR URL</span>
@@ -332,6 +332,11 @@ export function SettingsPage() {
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
 
+  const account = () => {
+    const current = session();
+    return current?.authenticated ? current.user : undefined;
+  };
+
   void bootstrap();
 
   async function bootstrap() {
@@ -362,22 +367,20 @@ export function SettingsPage() {
         <div {...sx(styles.eyebrow)}>ACCOUNT SETTINGS</div>
         <h1 {...sx(styles.title)}>Your Vutame account.</h1>
         <Show when={error()}><div {...sx(styles.message, styles.error)}>{error()}</div></Show>
-        <Show when={session()} fallback={<p {...sx(styles.copy)}>Loading account…</p>}>
-          {(current) => (
-            <Show when={current().authenticated} fallback={<p {...sx(styles.copy)}>You are signed out. <a href="/signin">Sign in</a> to manage your account.</p>}>
-              {(authenticated) => (
-                <>
-                  <div {...sx(styles.accountRow)}><span {...sx(styles.label)}>EMAIL</span><span {...sx(styles.value)}>{authenticated().user.email}</span></div>
-                  <div {...sx(styles.accountRow)}><span {...sx(styles.label)}>EMAIL VERIFIED</span><span {...sx(styles.value)}>{authenticated().user.email_verified ? "Yes" : "No"}</span></div>
-                  <div {...sx(styles.accountRow)}><span {...sx(styles.label)}>PUBLIC VUTA</span><span {...sx(styles.value)}>{profile() ? `vuta.me/@${profile()!.handle}` : "Not claimed yet"}</span></div>
-                  <div {...sx(styles.actions)}>
-                    <a {...sx(styles.button)} href="/create">{profile() ? "Open creator dashboard" : "Claim your Vuta"}</a>
-                    <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void signOut()}>{busy() ? "Signing out…" : "Sign out"}</button>
-                  </div>
-                </>
-              )}
-            </Show>
-          )}
+        <Show when={session() !== undefined} fallback={<p {...sx(styles.copy)}>Loading account…</p>}>
+          <Show when={account()} fallback={<p {...sx(styles.copy)}>You are signed out. <a href="/signin">Sign in</a> to manage your account.</p>}>
+            {(user) => (
+              <>
+                <div {...sx(styles.accountRow)}><span {...sx(styles.label)}>EMAIL</span><span {...sx(styles.value)}>{user().email}</span></div>
+                <div {...sx(styles.accountRow)}><span {...sx(styles.label)}>EMAIL VERIFIED</span><span {...sx(styles.value)}>{user().email_verified ? "Yes" : "No"}</span></div>
+                <div {...sx(styles.accountRow)}><span {...sx(styles.label)}>PUBLIC VUTA</span><span {...sx(styles.value)}>{profile() ? `vuta.me/@${profile()!.handle}` : "Not claimed yet"}</span></div>
+                <div {...sx(styles.actions)}>
+                  <a {...sx(styles.button)} href="/create">{profile() ? "Open creator dashboard" : "Claim your Vuta"}</a>
+                  <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void signOut()}>{busy() ? "Signing out…" : "Sign out"}</button>
+                </div>
+              </>
+            )}
+          </Show>
         </Show>
       </div>
     </section>
