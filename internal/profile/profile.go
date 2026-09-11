@@ -1,16 +1,22 @@
 package profile
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
 )
 
 var (
-	ErrNotFound     = errors.New("profile not found")
-	ErrInvalidHandle = errors.New("invalid handle")
+	ErrNotFound       = errors.New("profile not found")
+	ErrInvalidHandle  = errors.New("invalid handle")
+	ErrHandleTaken    = errors.New("handle already claimed")
+	ErrProfileExists  = errors.New("profile already exists")
+	ErrInvalidProfile = errors.New("invalid profile")
+	ErrInvalidLink    = errors.New("invalid link")
 )
 
 const (
@@ -20,7 +26,8 @@ const (
 
 var reservedHandles = map[string]struct{}{
 	"admin": {}, "api": {}, "create": {}, "discover": {}, "help": {},
-	"login": {}, "signup": {}, "support": {}, "vuta": {}, "vutame": {},
+	"login": {}, "me": {}, "settings": {}, "signin": {}, "signup": {},
+	"support": {}, "vuta": {}, "vutame": {},
 }
 
 type Link struct {
@@ -43,10 +50,33 @@ type Profile struct {
 	Links       []Link `json:"links"`
 }
 
+type UpdateInput struct {
+	DisplayName string `json:"display_name"`
+	Bio         string `json:"bio"`
+	AvatarURL   string `json:"avatar_url"`
+}
+
+type LinkInput struct {
+	Label    string `json:"label"`
+	URL      string `json:"url"`
+	Kind     string `json:"kind"`
+	IsActive bool   `json:"is_active"`
+}
+
 type Store interface {
 	Get(handle string) (Profile, error)
 	Discover() ([]Profile, error)
 	HandleAvailable(handle string) (bool, error)
+}
+
+type Editor interface {
+	GetOwned(context.Context, string) (Profile, error)
+	Claim(context.Context, string, string) (Profile, error)
+	Update(context.Context, string, UpdateInput) (Profile, error)
+	CreateLink(context.Context, string, LinkInput) (Link, error)
+	UpdateLink(context.Context, string, string, LinkInput) (Link, error)
+	DeleteLink(context.Context, string, string) error
+	ReorderLinks(context.Context, string, []string) error
 }
 
 type MemoryStore struct {
@@ -106,6 +136,53 @@ func ValidateHandle(handle string) error {
 		return fmt.Errorf("%w: handle is reserved", ErrInvalidHandle)
 	}
 	return nil
+}
+
+func ValidateUpdateInput(input UpdateInput) (UpdateInput, error) {
+	input.DisplayName = strings.TrimSpace(input.DisplayName)
+	input.Bio = strings.TrimSpace(input.Bio)
+	input.AvatarURL = strings.TrimSpace(input.AvatarURL)
+	if len(input.DisplayName) > 80 {
+		return UpdateInput{}, fmt.Errorf("%w: display name must be 80 characters or fewer", ErrInvalidProfile)
+	}
+	if len(input.Bio) > 320 {
+		return UpdateInput{}, fmt.Errorf("%w: bio must be 320 characters or fewer", ErrInvalidProfile)
+	}
+	if input.AvatarURL != "" {
+		parsed, err := url.ParseRequestURI(input.AvatarURL)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return UpdateInput{}, fmt.Errorf("%w: avatar URL must be an absolute http(s) URL", ErrInvalidProfile)
+		}
+	}
+	return input, nil
+}
+
+func ValidateLinkInput(input LinkInput) (LinkInput, error) {
+	input.Label = strings.TrimSpace(input.Label)
+	input.URL = strings.TrimSpace(input.URL)
+	input.Kind = strings.ToLower(strings.TrimSpace(input.Kind))
+	if input.Kind == "" {
+		input.Kind = "website"
+	}
+	if input.Label == "" || len(input.Label) > 100 {
+		return LinkInput{}, fmt.Errorf("%w: label must be 1-100 characters", ErrInvalidLink)
+	}
+	if len(input.URL) > 2048 {
+		return LinkInput{}, fmt.Errorf("%w: URL is too long", ErrInvalidLink)
+	}
+	parsed, err := url.ParseRequestURI(input.URL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return LinkInput{}, fmt.Errorf("%w: URL must be an absolute http(s) URL", ErrInvalidLink)
+	}
+	if len(input.Kind) > 32 {
+		return LinkInput{}, fmt.Errorf("%w: kind is too long", ErrInvalidLink)
+	}
+	for _, char := range input.Kind {
+		if !(char >= 'a' && char <= 'z' || char >= '0' && char <= '9' || char == '-' || char == '_') {
+			return LinkInput{}, fmt.Errorf("%w: kind contains unsupported characters", ErrInvalidLink)
+		}
+	}
+	return input, nil
 }
 
 func (s *MemoryStore) Get(handle string) (Profile, error) {
