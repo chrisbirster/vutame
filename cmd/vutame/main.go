@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,7 +18,12 @@ import (
 
 func main() {
 	port := envString("PORT", "8080")
-	profiles := profile.NewSeedStore()
+	profiles, closeProfiles, backend, err := openProfileStore()
+	if err != nil {
+		slog.Error("open profile store", "error", err)
+		os.Exit(1)
+	}
+	defer closeProfiles()
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -43,11 +49,25 @@ func main() {
 		}
 	}()
 
-	slog.Info("vutame listening", "addr", server.Addr)
+	slog.Info("vutame listening", "addr", server.Addr, "profile_store", backend)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func openProfileStore() (profile.Store, func(), string, error) {
+	dsn := strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN"))
+	if dsn == "" {
+		// Transitional M1 behavior: preserve the M0 demo when no database is
+		// configured. M1 will make durable storage mandatory before completion.
+		return profile.NewSeedStore(), func() {}, "memory", nil
+	}
+	store, err := profile.OpenSQLite(dsn)
+	if err != nil {
+		return nil, func() {}, "sqlite", fmt.Errorf("open VUTAME_DATABASE_DSN: %w", err)
+	}
+	return store, func() { _ = store.Close() }, "sqlite", nil
 }
 
 func envString(key, fallback string) string {

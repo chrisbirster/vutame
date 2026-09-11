@@ -3,5 +3,7 @@ node_modules/
 internal/web/dist/*
 !internal/web/dist/index.html
 vutame
+vutame.db
+vutame.db-*
 .env
 .env.*
