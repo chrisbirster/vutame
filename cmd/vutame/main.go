@@ -21,7 +21,7 @@ import (
 func main() {
 	port := envString("PORT", "8080")
 	dsn := strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN"))
-	profiles, closeProfiles, backend, err := openProfileStore(dsn)
+	profiles, editor, closeProfiles, backend, err := openProfileStore(dsn)
 	if err != nil {
 		slog.Error("open profile store", "error", err)
 		os.Exit(1)
@@ -41,6 +41,7 @@ func main() {
 			MarketingOrigin: envString("VUTAME_MARKETING_ORIGIN", "https://vutame.com"),
 			ProfileOrigin:   envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"),
 			Auth:            authService,
+			Editor:          editor,
 			CookieSecure:    envString("VUTAME_COOKIE_SECURE", "1") != "0",
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -61,22 +62,22 @@ func main() {
 		}
 	}()
 
-	slog.Info("vutame listening", "addr", server.Addr, "profile_store", backend, "auth_enabled", authService != nil)
+	slog.Info("vutame listening", "addr", server.Addr, "profile_store", backend, "auth_enabled", authService != nil, "editor_enabled", editor != nil)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func openProfileStore(dsn string) (profile.Store, func(), string, error) {
+func openProfileStore(dsn string) (profile.Store, profile.Editor, func(), string, error) {
 	if dsn == "" {
-		return profile.NewSeedStore(), func() {}, "memory", nil
+		return profile.NewSeedStore(), nil, func() {}, "memory", nil
 	}
 	store, err := profile.OpenSQLite(dsn)
 	if err != nil {
-		return nil, func() {}, "sqlite", fmt.Errorf("open VUTAME_DATABASE_DSN: %w", err)
+		return nil, nil, func() {}, "sqlite", fmt.Errorf("open VUTAME_DATABASE_DSN: %w", err)
 	}
-	return store, func() { _ = store.Close() }, "sqlite", nil
+	return store, store, func() { _ = store.Close() }, "sqlite", nil
 }
 
 func openAuthService(dsn string) (*auth.Service, func(), error) {
