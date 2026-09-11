@@ -6,22 +6,25 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/chrisbirster/vutame/internal/httpapi"
+	"github.com/chrisbirster/vutame/internal/profile"
 	webapp "github.com/chrisbirster/vutame/internal/web"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	port := envString("PORT", "8080")
+	profiles := profile.NewSeedStore()
 
 	server := &http.Server{
-		Addr:              ":" + port,
-		Handler:           httpapi.New(webapp.Handler()),
+		Addr: ":" + port,
+		Handler: httpapi.New(webapp.Handler(), profiles, httpapi.Options{
+			MarketingOrigin: envString("VUTAME_MARKETING_ORIGIN", "https://vutame.com"),
+			ProfileOrigin:   envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"),
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -45,4 +48,11 @@ func main() {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func envString(key, fallback string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return fallback
 }

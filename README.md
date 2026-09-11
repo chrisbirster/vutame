@@ -2,10 +2,10 @@
 
 Vutame is a social profile and link-sharing platform.
 
-- **`vutame.com`** — marketing, discovery, onboarding, and the network.
+- **`vutame.com`** — marketing, discovery, onboarding, account management, and the network.
 - **`vuta.me/@handle`** — the short public profile people share.
 
-The first product slice is intentionally Linktree-simple, but the architecture leaves room for an AT Protocol-native social layer where public profiles and links can become portable records.
+The first product goal is Linktree-level utility. The longer-term differentiator is a creator discovery graph and an optional AT Protocol layer where public profile/link records can become portable.
 
 ## Stack
 
@@ -17,7 +17,15 @@ The first product slice is intentionally Linktree-simple, but the architecture l
 - StyleX
 - TypeScript
 
-The project shape follows the same embedded-SPA pattern used by the other Go/Solid repositories.
+## Branches
+
+Development uses:
+
+```text
+feature/* -> dev -> main -> vX.Y.Z
+```
+
+Feature pull requests target `dev`. `main` is release-only. See [`docs/branching-and-releases.md`](docs/branching-and-releases.md).
 
 ## Develop
 
@@ -57,4 +65,6 @@ npm run build
 npm run verify
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the product split and ATProto direction.
+## Documentation
+
+Start with [`docs/README.md`](docs/README.md), then read the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and current [M0 milestone](docs/milestones/m0-foundation.md).
