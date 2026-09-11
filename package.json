@@ -10,7 +10,7 @@
     "dev": "vite",
     "dev:api": "go run ./cmd/vutame",
     "typecheck": "tsc --noEmit",
-    "go:deps": "go mod download",
+    "go:deps": "go mod tidy && git diff -- go.mod go.sum",
     "test": "npm run go:deps && go test ./...",
     "db:schema:plan": "atlas schema apply --env local --dry-run",
     "db:schema:apply": "atlas schema apply --env local --auto-approve",
