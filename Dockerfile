@@ -7,7 +7,7 @@ RUN npm run build:web
 
 FROM golang:1.26-alpine AS server
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/internal/web/dist ./internal/web/dist
