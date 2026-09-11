@@ -13,29 +13,40 @@ Goal: let a real person sign in, claim a Vuta, and manage a durable profile.
 - [x] Verify required schema tables at startup when SQLite is configured.
 - [x] Preserve public filtering/order behavior for active links.
 - [x] Add database-backed profile, link-order, handle-availability, and missing-schema tests.
-- [ ] CI green on the persistence PR.
-- [ ] Merge persistence slice into `dev`.
+- [x] CI green on the persistence PR.
+- [x] Merge persistence slice into `dev`.
 
-`VUTAME_DATABASE_DSN` enables the SQLite store. If it is absent during this transitional slice, the M0 memory seed remains available. Before M1 closes, durable storage will become the normal hosted path.
-
-Local schema workflow:
-
-```bash
-atlas schema apply --env local --dry-run
-atlas schema apply --env local --auto-approve
-VUTAME_DATABASE_DSN='file:vutame.db' npm run dev:api
-```
+`VUTAME_DATABASE_DSN` enables the SQLite store. Atlas must apply the desired schema before the server starts.
 
 ## Slice 2 — identity and sessions
 
-- [ ] Add user creation/lookup repository operations.
-- [ ] Add email verification challenge records with short expiry and one-time consumption.
-- [ ] Send magic-link/code email through a provider abstraction.
-- [ ] Create hashed server-side sessions.
-- [ ] Add secure `HttpOnly`, `SameSite=Lax` session cookie handling.
-- [ ] Add logout and expiry cleanup.
-- [ ] Establish CSRF strategy for authenticated mutation routes.
-- [ ] Add `/api/v1/auth/*` endpoints and corresponding Solid sign-in flow.
+- [x] Add user creation/lookup as part of successful email verification.
+- [x] Add email verification challenge records with 10-minute expiry and one-time transactional consumption.
+- [x] Add an email sender abstraction with an explicitly local-only log sender.
+- [x] Store challenge codes as HMAC-SHA256 hashes using a server secret.
+- [x] Create random server-side sessions and store only token hashes.
+- [x] Add secure `HttpOnly`, `SameSite=Lax` session cookie handling.
+- [x] Add logout and session lookup.
+- [x] Require JSON mutation requests as the initial CSRF boundary; no CORS mutation path is exposed.
+- [x] Add `/api/v1/auth/code`, `/verify`, `/session`, and `/logout` endpoints.
+- [x] Add service and HTTP tests for code/session lifecycle and cookie behavior.
+- [ ] Wire a production email provider (SES candidate).
+- [ ] Add the Solid sign-in/code-entry flow.
+- [ ] CI green on the auth/session PR.
+- [ ] Merge auth/session slice into `dev`.
+
+Local authentication requires the managed schema plus a stable secret:
+
+```bash
+npm run db:schema:apply
+VUTAME_DATABASE_DSN='file:vutame.db' \
+VUTAME_AUTH_SECRET='replace-with-at-least-32-random-bytes' \
+VUTAME_AUTH_LOG_CODES=1 \
+VUTAME_COOKIE_SECURE=0 \
+npm run dev:api
+```
+
+`VUTAME_AUTH_LOG_CODES=1` is development-only. Hosted environments must use a real sender and must not log one-time codes.
 
 ## Slice 3 — claiming and profile/link mutations
 

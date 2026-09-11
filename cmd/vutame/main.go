@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chrisbirster/vutame/internal/auth"
 	"github.com/chrisbirster/vutame/internal/httpapi"
 	"github.com/chrisbirster/vutame/internal/profile"
 	webapp "github.com/chrisbirster/vutame/internal/web"
@@ -18,18 +20,28 @@ import (
 
 func main() {
 	port := envString("PORT", "8080")
-	profiles, closeProfiles, backend, err := openProfileStore()
+	dsn := strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN"))
+	profiles, closeProfiles, backend, err := openProfileStore(dsn)
 	if err != nil {
 		slog.Error("open profile store", "error", err)
 		os.Exit(1)
 	}
 	defer closeProfiles()
 
+	authService, closeAuth, err := openAuthService(dsn)
+	if err != nil {
+		slog.Error("open auth service", "error", err)
+		os.Exit(1)
+	}
+	defer closeAuth()
+
 	server := &http.Server{
 		Addr: ":" + port,
 		Handler: httpapi.New(webapp.Handler(), profiles, httpapi.Options{
 			MarketingOrigin: envString("VUTAME_MARKETING_ORIGIN", "https://vutame.com"),
 			ProfileOrigin:   envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"),
+			Auth:            authService,
+			CookieSecure:    envString("VUTAME_COOKIE_SECURE", "1") != "0",
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
@@ -49,18 +61,15 @@ func main() {
 		}
 	}()
 
-	slog.Info("vutame listening", "addr", server.Addr, "profile_store", backend)
+	slog.Info("vutame listening", "addr", server.Addr, "profile_store", backend, "auth_enabled", authService != nil)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func openProfileStore() (profile.Store, func(), string, error) {
-	dsn := strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN"))
+func openProfileStore(dsn string) (profile.Store, func(), string, error) {
 	if dsn == "" {
-		// Transitional M1 behavior: preserve the M0 demo when no database is
-		// configured. M1 will make durable storage mandatory before completion.
 		return profile.NewSeedStore(), func() {}, "memory", nil
 	}
 	store, err := profile.OpenSQLite(dsn)
@@ -68,6 +77,31 @@ func openProfileStore() (profile.Store, func(), string, error) {
 		return nil, func() {}, "sqlite", fmt.Errorf("open VUTAME_DATABASE_DSN: %w", err)
 	}
 	return store, func() { _ = store.Close() }, "sqlite", nil
+}
+
+func openAuthService(dsn string) (*auth.Service, func(), error) {
+	if dsn == "" {
+		return nil, func() {}, nil
+	}
+	secret := []byte(strings.TrimSpace(os.Getenv("VUTAME_AUTH_SECRET")))
+	if len(secret) < 32 {
+		return nil, func() {}, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when VUTAME_DATABASE_DSN is configured")
+	}
+	store, err := auth.OpenSQLite(dsn)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	var sender auth.Sender = auth.UnavailableSender{}
+	if envString("VUTAME_AUTH_LOG_CODES", "0") == "1" {
+		sender = auth.LogSender{}
+		slog.Warn("development auth code logging is enabled")
+	}
+	service, err := auth.NewService(store, sender, secret, auth.Config{})
+	if err != nil {
+		_ = store.Close()
+		return nil, func() {}, err
+	}
+	return service, func() { _ = store.Close() }, nil
 }
 
 func envString(key, fallback string) string {

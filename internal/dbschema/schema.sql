@@ -1,6 +1,6 @@
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL COLLATE NOCASE UNIQUE,
   email_verified INTEGER NOT NULL DEFAULT 0 CHECK (email_verified IN (0, 1)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -31,6 +31,19 @@ CREATE TABLE links (
 );
 
 CREATE INDEX links_user_position_idx ON links(user_id, position, id);
+
+CREATE TABLE auth_challenges (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL COLLATE NOCASE,
+  code_hash TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX auth_challenges_email_idx ON auth_challenges(email, created_at);
+CREATE INDEX auth_challenges_expires_idx ON auth_challenges(expires_at);
 
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
