@@ -6,12 +6,15 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/chrisbirster/vutame/internal/auth"
 	"github.com/chrisbirster/vutame/internal/profile"
 )
 
 type Options struct {
 	MarketingOrigin string
 	ProfileOrigin   string
+	Auth            *auth.Service
+	CookieSecure    bool
 }
 
 func New(web http.Handler, profiles profile.Store, options Options) http.Handler {
@@ -70,6 +73,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 		writeJSON(w, http.StatusOK, item)
 	})
 
+	registerAuthRoutes(mux, options)
 	mux.Handle("/", web)
 	return mux
 }
