@@ -34,7 +34,7 @@ func TestSMTPSenderBuildsOneTimeCodeMessage(t *testing.T) {
 	}
 	message := sender.message("creator@example.com", "123456")
 	for _, want := range []string{
-		"From: Vutame <login@example.com>",
+		"From: \"Vutame\" <login@example.com>",
 		"To: creator@example.com",
 		"Subject: Your Vutame sign-in code",
 		"Your Vutame sign-in code is: 123456",
