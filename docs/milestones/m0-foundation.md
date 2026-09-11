@@ -1,6 +1,6 @@
 # M0 — Foundation
 
-Status: **implementation complete; awaiting merge to `dev`**
+Status: **complete**
 
 M0 exists to make later feature work predictable. It deliberately does not include authentication or durable user writes; those begin in M1.
 
@@ -20,7 +20,7 @@ M0 exists to make later feature work predictable. It deliberately does not inclu
 - [x] Runtime metadata exposes marketing/profile origins.
 - [x] Domain and HTTP behavior have Go tests.
 - [x] CI is green on the M0 PR after these changes.
-- [ ] M0 PR is reviewed/merged into `dev`.
+- [x] M0 PR is merged into `dev`.
 
 ## M0 API contract
 
