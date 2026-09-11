@@ -16,8 +16,6 @@ Goal: let a real person sign in, claim a Vuta, and manage a durable profile.
 - [x] CI green on the persistence PR.
 - [x] Merge persistence slice into `dev`.
 
-`VUTAME_DATABASE_DSN` enables the SQLite store. Atlas must apply the desired schema before the server starts.
-
 ## Slice 2 — identity and sessions
 
 - [x] Add user creation/lookup as part of successful email verification.
@@ -30,10 +28,12 @@ Goal: let a real person sign in, claim a Vuta, and manage a durable profile.
 - [x] Require JSON mutation requests as the initial CSRF boundary; no CORS mutation path is exposed.
 - [x] Add `/api/v1/auth/code`, `/verify`, `/session`, and `/logout` endpoints.
 - [x] Add service and HTTP tests for code/session lifecycle and cookie behavior.
+- [x] CI green on the auth/session backend PR.
+- [x] Merge auth/session backend into `dev`.
+- [x] Add the Solid `/signin` email/code/session UI.
+- [ ] CI green on the sign-in UI PR.
+- [ ] Merge the sign-in UI into `dev`.
 - [ ] Wire a production email provider (SES candidate).
-- [ ] Add the Solid sign-in/code-entry flow.
-- [ ] CI green on the auth/session PR.
-- [ ] Merge auth/session slice into `dev`.
 
 Local authentication requires the managed schema plus a stable secret:
 
