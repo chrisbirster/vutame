@@ -16,6 +16,7 @@ The first product goal is Linktree-level utility. The longer-term differentiator
 - Solid Router
 - StyleX
 - TypeScript
+- SQLite locally with Atlas-managed schema
 
 ## Branches
 
@@ -29,9 +30,20 @@ Feature pull requests target `dev`. `main` is release-only. See [`docs/branching
 
 ## Develop
 
-Run the API:
+Install dependencies and apply the local Atlas schema:
 
 ```bash
+npm install
+npm run db:schema:apply
+```
+
+Run the API with durable local profiles and development-only email-code logging:
+
+```bash
+VUTAME_DATABASE_DSN='file:vutame.db' \
+VUTAME_AUTH_SECRET='replace-with-at-least-32-random-bytes' \
+VUTAME_AUTH_LOG_CODES=1 \
+VUTAME_COOKIE_SECURE=0 \
 npm run dev:api
 ```
 
@@ -47,7 +59,25 @@ Open:
 
 - `http://localhost:5173/`
 - `http://localhost:5173/discover`
+- `http://localhost:5173/signin`
+- `http://localhost:5173/create`
+- `http://localhost:5173/settings`
 - `http://localhost:5173/@chrisdontmiss`
+
+The no-database startup path still serves the original in-memory demo profile, but authenticated editing requires managed durable storage.
+
+## Hosted auth email
+
+Production-style email delivery is provider-neutral SMTP with mandatory STARTTLS. Configure:
+
+```bash
+VUTAME_SMTP_ADDR='smtp.example.com:587'
+VUTAME_SMTP_USERNAME='smtp-user'
+VUTAME_SMTP_PASSWORD='smtp-password'
+VUTAME_AUTH_EMAIL_FROM='Vutame <login@vutame.com>'
+```
+
+These settings can be backed by an SMTP provider such as Amazon SES SMTP credentials. Do not enable `VUTAME_AUTH_LOG_CODES` in hosted environments; the server rejects development code logging while secure cookies are enabled.
 
 ## Build
 
@@ -67,4 +97,4 @@ npm run verify
 
 ## Documentation
 
-Start with [`docs/README.md`](docs/README.md), then read the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and current [M0 milestone](docs/milestones/m0-foundation.md).
+Start with [`docs/README.md`](docs/README.md), then read the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and current [M1 milestone](docs/milestones/m1-accounts-persistence.md).
