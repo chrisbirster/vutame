@@ -129,8 +129,7 @@ export function ProfilePage() {
   const [profile, setProfile] = createSignal<Profile | null | undefined>(undefined);
   const [error, setError] = createSignal("");
 
-  createEffect(() => {
-    const current = handle();
+  createEffect(handle, (current) => {
     if (!current) {
       setProfile(null);
       return;
