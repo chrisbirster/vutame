@@ -21,6 +21,7 @@ import (
 func main() {
 	port := envString("PORT", "8080")
 	dsn := strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN"))
+	cookieSecure := envString("VUTAME_COOKIE_SECURE", "1") != "0"
 	profiles, editor, closeProfiles, backend, err := openProfileStore(dsn)
 	if err != nil {
 		slog.Error("open profile store", "error", err)
@@ -28,7 +29,7 @@ func main() {
 	}
 	defer closeProfiles()
 
-	authService, closeAuth, err := openAuthService(dsn)
+	authService, closeAuth, err := openAuthService(dsn, cookieSecure)
 	if err != nil {
 		slog.Error("open auth service", "error", err)
 		os.Exit(1)
@@ -42,7 +43,7 @@ func main() {
 			ProfileOrigin:   envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"),
 			Auth:            authService,
 			Editor:          editor,
-			CookieSecure:    envString("VUTAME_COOKIE_SECURE", "1") != "0",
+			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
@@ -80,7 +81,7 @@ func openProfileStore(dsn string) (profile.Store, profile.Editor, func(), string
 	return store, store, func() { _ = store.Close() }, "sqlite", nil
 }
 
-func openAuthService(dsn string) (*auth.Service, func(), error) {
+func openAuthService(dsn string, cookieSecure bool) (*auth.Service, func(), error) {
 	if dsn == "" {
 		return nil, func() {}, nil
 	}
@@ -92,10 +93,10 @@ func openAuthService(dsn string) (*auth.Service, func(), error) {
 	if err != nil {
 		return nil, func() {}, err
 	}
-	var sender auth.Sender = auth.UnavailableSender{}
-	if envString("VUTAME_AUTH_LOG_CODES", "0") == "1" {
-		sender = auth.LogSender{}
-		slog.Warn("development auth code logging is enabled")
+	sender, err := openAuthSender(cookieSecure)
+	if err != nil {
+		_ = store.Close()
+		return nil, func() {}, err
 	}
 	service, err := auth.NewService(store, sender, secret, auth.Config{})
 	if err != nil {
@@ -103,6 +104,42 @@ func openAuthService(dsn string) (*auth.Service, func(), error) {
 		return nil, func() {}, err
 	}
 	return service, func() { _ = store.Close() }, nil
+}
+
+func openAuthSender(cookieSecure bool) (auth.Sender, error) {
+	logCodes := envString("VUTAME_AUTH_LOG_CODES", "0") == "1"
+	smtpAddress := strings.TrimSpace(os.Getenv("VUTAME_SMTP_ADDR"))
+	smtpUsername := strings.TrimSpace(os.Getenv("VUTAME_SMTP_USERNAME"))
+	smtpPassword := os.Getenv("VUTAME_SMTP_PASSWORD")
+	from := strings.TrimSpace(os.Getenv("VUTAME_AUTH_EMAIL_FROM"))
+	hasSMTPConfig := smtpAddress != "" || smtpUsername != "" || smtpPassword != "" || from != ""
+
+	if logCodes {
+		if cookieSecure {
+			return nil, errors.New("VUTAME_AUTH_LOG_CODES requires VUTAME_COOKIE_SECURE=0 and is development-only")
+		}
+		if hasSMTPConfig {
+			return nil, errors.New("VUTAME_AUTH_LOG_CODES cannot be combined with SMTP configuration")
+		}
+		slog.Warn("development auth code logging is enabled")
+		return auth.LogSender{}, nil
+	}
+	if !hasSMTPConfig {
+		return auth.UnavailableSender{}, nil
+	}
+	if smtpAddress == "" {
+		return nil, errors.New("VUTAME_SMTP_ADDR is required when SMTP email settings are configured")
+	}
+	sender, err := auth.NewSMTPSender(auth.SMTPConfig{
+		Address:  smtpAddress,
+		Username: smtpUsername,
+		Password: smtpPassword,
+		From:     from,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("configure auth SMTP sender: %w", err)
+	}
+	return sender, nil
 }
 
 func envString(key, fallback string) string {
