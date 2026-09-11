@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 import {
   APIError,
@@ -30,9 +30,7 @@ export function SignInPage() {
     return current?.authenticated ? current.user : undefined;
   };
 
-  onMount(() => {
-    void refreshSession();
-  });
+  void refreshSession();
 
   async function refreshSession() {
     try {
