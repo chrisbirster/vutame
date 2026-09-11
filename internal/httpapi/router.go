@@ -14,6 +14,7 @@ type Options struct {
 	MarketingOrigin string
 	ProfileOrigin   string
 	Auth            *auth.Service
+	Editor          profile.Editor
 	CookieSecure    bool
 }
 
@@ -74,6 +75,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	})
 
 	registerAuthRoutes(mux, options)
+	registerEditorRoutes(mux, options)
 	mux.Handle("/", web)
 	return mux
 }
