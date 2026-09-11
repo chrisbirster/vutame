@@ -8,6 +8,7 @@ RUN npm run build:web
 FROM golang:1.26-alpine AS server
 WORKDIR /src
 COPY go.mod ./
+RUN go mod download
 COPY . .
 COPY --from=web /src/internal/web/dist ./internal/web/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vutame ./cmd/vutame
