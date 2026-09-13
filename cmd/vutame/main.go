@@ -13,28 +13,40 @@ import (
 	"time"
 
 	"github.com/chrisbirster/vutame/internal/auth"
+	datastore "github.com/chrisbirster/vutame/internal/database"
 	"github.com/chrisbirster/vutame/internal/httpapi"
 	"github.com/chrisbirster/vutame/internal/profile"
 	webapp "github.com/chrisbirster/vutame/internal/web"
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	port := envString("PORT", "8080")
-	dsn := strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN"))
 	cookieSecure := envString("VUTAME_COOKIE_SECURE", "1") != "0"
-	profiles, editor, closeProfiles, backend, err := openProfileStore(dsn)
+
+	databaseRuntime, err := openDatabaseRuntime(ctx)
+	if err != nil {
+		slog.Error("open database runtime", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := databaseRuntime.Close(); err != nil {
+			slog.Warn("close database runtime", "error", err)
+		}
+	}()
+
+	profiles, editor, err := openProfileStore(databaseRuntime)
 	if err != nil {
 		slog.Error("open profile store", "error", err)
 		os.Exit(1)
 	}
-	defer closeProfiles()
-
-	authService, closeAuth, err := openAuthService(dsn, cookieSecure)
+	authService, err := openAuthService(databaseRuntime, cookieSecure)
 	if err != nil {
 		slog.Error("open auth service", "error", err)
 		os.Exit(1)
 	}
-	defer closeAuth()
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -51,9 +63,6 @@ func main() {
 		IdleTimeout:       90 * time.Second,
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -63,47 +72,70 @@ func main() {
 		}
 	}()
 
-	slog.Info("vutame listening", "addr", server.Addr, "profile_store", backend, "auth_enabled", authService != nil, "editor_enabled", editor != nil)
+	slog.Info("vutame listening", "addr", server.Addr, "database_backend", databaseRuntime.Backend, "auth_enabled", authService != nil, "editor_enabled", editor != nil)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func openProfileStore(dsn string) (profile.Store, profile.Editor, func(), string, error) {
-	if dsn == "" {
-		return profile.NewSeedStore(), nil, func() {}, "memory", nil
-	}
-	store, err := profile.OpenSQLite(dsn)
+func openDatabaseRuntime(ctx context.Context) (*datastore.Runtime, error) {
+	config, err := databaseConfigFromEnv()
 	if err != nil {
-		return nil, nil, func() {}, "sqlite", fmt.Errorf("open VUTAME_DATABASE_DSN: %w", err)
+		return nil, err
 	}
-	return store, store, func() { _ = store.Close() }, "sqlite", nil
+	return datastore.Open(ctx, config)
 }
 
-func openAuthService(dsn string, cookieSecure bool) (*auth.Service, func(), error) {
-	if dsn == "" {
-		return nil, func() {}, nil
+func databaseConfigFromEnv() (datastore.Config, error) {
+	environment := strings.ToLower(envString("VUTAME_ENV", "development"))
+	requirePersistent := environment == "production" || envString("VUTAME_REQUIRE_DATABASE", "0") == "1"
+	syncInterval, err := time.ParseDuration(envString("VUTAME_TURSO_SYNC_INTERVAL", "5s"))
+	if err != nil || syncInterval <= 0 {
+		return datastore.Config{}, errors.New("VUTAME_TURSO_SYNC_INTERVAL must be a positive duration such as 5s")
+	}
+	return datastore.Config{
+		SQLiteDSN:         strings.TrimSpace(os.Getenv("VUTAME_DATABASE_DSN")),
+		RequirePersistent: requirePersistent,
+		TursoRemoteURL:    strings.TrimSpace(os.Getenv("VUTAME_TURSO_REMOTE_URL")),
+		TursoAuthToken:    strings.TrimSpace(os.Getenv("VUTAME_TURSO_AUTH_TOKEN")),
+		TursoLocalPath:    strings.TrimSpace(os.Getenv("VUTAME_TURSO_LOCAL_PATH")),
+		SyncInterval:      syncInterval,
+	}, nil
+}
+
+func openProfileStore(runtime *datastore.Runtime) (profile.Store, profile.Editor, error) {
+	if runtime == nil || runtime.DB == nil {
+		return profile.NewSeedStore(), nil, nil
+	}
+	store, err := profile.NewSQLiteStore(runtime.DB)
+	if err != nil {
+		return nil, nil, err
+	}
+	return store, store, nil
+}
+
+func openAuthService(runtime *datastore.Runtime, cookieSecure bool) (*auth.Service, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
 	}
 	secret := []byte(strings.TrimSpace(os.Getenv("VUTAME_AUTH_SECRET")))
 	if len(secret) < 32 {
-		return nil, func() {}, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when VUTAME_DATABASE_DSN is configured")
+		return nil, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when persistent storage is configured")
 	}
-	store, err := auth.OpenSQLite(dsn)
+	store, err := auth.NewSQLiteStore(runtime.DB)
 	if err != nil {
-		return nil, func() {}, err
+		return nil, err
 	}
 	sender, err := openAuthSender(cookieSecure)
 	if err != nil {
-		_ = store.Close()
-		return nil, func() {}, err
+		return nil, err
 	}
 	service, err := auth.NewService(store, sender, secret, auth.Config{})
 	if err != nil {
-		_ = store.Close()
-		return nil, func() {}, err
+		return nil, err
 	}
-	return service, func() { _ = store.Close() }, nil
+	return service, nil
 }
 
 func openAuthSender(cookieSecure bool) (auth.Sender, error) {

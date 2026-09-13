@@ -1,6 +1,6 @@
 # M1 — Accounts, persistence, and real link CRUD
 
-Status: **in progress — production persistence remains**
+Status: **complete**
 
 Goal: let a real person sign in, claim a Vuta, and manage a durable profile.
 
@@ -53,10 +53,13 @@ npm run dev:api
 
 ### Hosted authentication email
 
-Hosted environments use SMTP over mandatory STARTTLS:
+Hosted environments use the Turso production database path plus SMTP over mandatory STARTTLS:
 
 ```bash
-VUTAME_DATABASE_DSN='...' \
+VUTAME_ENV=production \
+VUTAME_TURSO_REMOTE_URL='https://database.region.turso.io' \
+VUTAME_TURSO_AUTH_TOKEN='database-token' \
+VUTAME_TURSO_LOCAL_PATH='/tmp/vutame.db' \
 VUTAME_AUTH_SECRET='replace-with-at-least-32-random-bytes' \
 VUTAME_SMTP_ADDR='smtp.example.com:587' \
 VUTAME_SMTP_USERNAME='smtp-user' \
@@ -83,13 +86,20 @@ The SMTP path is provider-neutral and can be configured with a hosted SMTP provi
 
 ## Slice 4 — production persistence
 
-- [ ] Add libSQL/Turso production adapter without changing domain interfaces.
-- [ ] Add production Atlas plan/apply workflow and deployment documentation.
-- [ ] Add integration tests against the production-style adapter.
-- [ ] Remove transitional memory fallback from hosted configuration.
+- [x] Add Turso production persistence without changing domain interfaces. Vutame uses the current `turso.tech/database/tursogo` sync driver rather than the deprecated `libsql-client-go` client.
+- [x] Keep the application boundary on `database/sql`; local development uses `modernc` SQLite and hosted production uses a local Turso replica synchronized with Turso Cloud.
+- [x] Add bounded periodic push/pull plus a final push during graceful shutdown.
+- [x] Add production Atlas plan/apply workflow and deployment documentation.
+- [x] Add a no-CGO Turso driver smoke test.
+- [x] Add a Vutame integration test on the Turso engine covering schema application, handle claim, profile edit, link CRUD/reorder/visibility, and public-vs-owned profile behavior.
+- [x] Make `CGO_ENABLED=0` part of the normal Go test/build contract.
+- [x] Add a production Docker build gate to CI.
+- [x] Remove the transitional memory fallback from hosted configuration: `VUTAME_ENV=production` fails startup unless persistent storage is configured.
 
 ## M1 exit criteria
 
 A new user can sign in, claim `vuta.me/@name`, edit their profile, add/reorder/hide/delete links, sign out, restart the server, and still see the same public profile. Unauthorized users cannot mutate another user's Vuta.
 
-The local SQLite implementation now proves this product flow. **M1 remains open until Slice 4 proves the same behavior on the production persistence path and hosted configuration no longer depends on the transitional memory fallback.**
+M1 proves the product flow on local SQLite and verifies the same schema/domain operations against the Turso production engine. Hosted Vutame bootstraps a local replica from Turso Cloud, synchronizes writes with bounded push/pull operations, and refuses to start with temporary in-memory data. Atlas remains the external schema authority.
+
+See [`../deployment.md`](../deployment.md) for production provisioning, schema application, secrets, and rollout order.

@@ -26,13 +26,19 @@ Browser
        │ /*             SPA fallback  │
        └──────────────────────────────┘
               │
-       ┌──────┴────────┐
-       │ profile.Store │  ← interface boundary
-       └──────┬────────┘
-              │
-       memory store (M0)
-              │
-       SQLite/libSQL (M1)
+       ┌──────┴─────────────┐
+       │ profile.Store      │ public reads
+       │ profile.Editor     │ authenticated writes
+       │ auth.Store         │ identity + sessions
+       └──────┬─────────────┘
+              │ database/sql
+       ┌──────┴──────────────────────────┐
+       │ local: modernc SQLite           │
+       │ hosted: Turso synced replica    │
+       └──────────────┬──────────────────┘
+                      │ push / pull
+                      ▼
+                  Turso Cloud
 
 Vite + Solid 2 + Solid Router + StyleX
               │
@@ -51,17 +57,21 @@ Production is built in two phases: Vite writes the SPA into `internal/web/dist`;
 
 `cmd/vutame` owns process startup, environment configuration, graceful shutdown, and dependency wiring.
 
+`internal/database` owns SQL backend selection, local SQLite setup, Turso sync lifecycle, and the hosted no-memory-fallback rule.
+
 `internal/httpapi` owns HTTP routing and transport concerns. It depends on interfaces rather than global profile data.
 
-`internal/profile` owns public profile domain rules: stable IDs, handle normalization/validation, link ordering, visibility, and the profile store interface.
+`internal/profile` owns public profile domain rules: stable IDs, handle normalization/validation, link ordering, visibility, ownership-safe editing, and the profile store/editor interfaces.
+
+`internal/auth` owns one-time email challenges, user/session persistence, HMAC/token rules, and the pluggable email sender boundary.
 
 `internal/web` owns the embedded SPA and client-side route fallback.
 
-Future packages should follow the same boundary style: `account`, `auth`, `analytics`, `social`, `billing`, and `atproto` should expose domain services rather than leaking database or protocol details into HTTP handlers.
+Future packages should follow the same boundary style: `analytics`, `social`, `billing`, and `atproto` should expose domain services rather than leaking database or protocol details into HTTP handlers.
 
-## Public API foundation
+## API foundation
 
-M0 exposes:
+Public reads:
 
 - `GET /api/v1/healthz`
 - `GET /api/v1/meta`
@@ -69,13 +79,28 @@ M0 exposes:
 - `GET /api/v1/profiles/{handle}`
 - `GET /api/v1/handles/{handle}/availability`
 
-Mutation APIs arrive with authenticated accounts in M1.
+Authentication:
+
+- `POST /api/v1/auth/code`
+- `POST /api/v1/auth/verify`
+- `GET /api/v1/auth/session`
+- `POST /api/v1/auth/logout`
+
+Authenticated editing:
+
+- `GET /api/v1/me/profile`
+- `POST /api/v1/me/profile/claim`
+- `PATCH /api/v1/me/profile`
+- `POST /api/v1/me/links`
+- `PATCH /api/v1/me/links/{id}`
+- `DELETE /api/v1/me/links/{id}`
+- `PUT /api/v1/me/links/order`
 
 ## Identity and handles
 
 Handles are human-readable routing aliases, not primary keys. Every user/profile receives a stable opaque internal ID. Handles may change without breaking ownership relationships, analytics, or ATProto mappings.
 
-M0 handle rules are deliberately conservative:
+Handle rules are deliberately conservative:
 
 - normalized to lowercase and stripped of a leading `@`;
 - 3–32 ASCII characters;
@@ -83,49 +108,36 @@ M0 handle rules are deliberately conservative:
 - must start and end with a letter or number;
 - product/system routes such as `api`, `admin`, `create`, and `discover` are reserved.
 
-## Persistence plan
+Handle claiming is transactional. Database uniqueness is the final authority even if two clients observe the handle as available at the same time.
 
-M0 uses an injected in-memory store so domain behavior is testable before persistence is chosen.
+## Persistence
 
-M1 moves the same interfaces to SQLite locally and libSQL/Turso for hosted production. Schema management should be explicit and external to normal application startup; the preferred direction is an Atlas-owned desired schema, following the pattern used in the other Go projects.
+The development fallback is an injected in-memory seed store. It exists only so the marketing/public-profile shell can run without setup; authenticated editing is disabled in that mode.
 
-Core tables are expected to include:
+Persisted local development uses `modernc.org/sqlite` through `database/sql`.
+
+Hosted production uses `turso.tech/database/tursogo` in sync mode. The application opens a local Turso replica through the standard `database/sql` interface, bootstraps it from Turso Cloud, periodically pushes/pulls changes, and performs a final push during graceful shutdown. This keeps the domain stores database-agnostic while retaining a no-CGO Go build.
+
+A container runs with `VUTAME_ENV=production`, which makes persistent database configuration mandatory. Production can never silently fall back to seeded memory data.
+
+Schema management is external to application startup. Atlas owns the desired schema in `internal/dbschema/schema.sql`; the application only verifies that required tables exist. See `docs/deployment.md` for the production apply sequence.
+
+Current core tables:
 
 ```text
 users
-  id
-  email
-  created_at
-  updated_at
-
 profiles
-  user_id
-  handle unique
-  display_name
-  bio
-  avatar_url
-  verified
-  atproto_did nullable
-
 links
-  id
-  user_id
-  label
-  url
-  kind
-  position
-  is_active
-  created_at
-  updated_at
+auth_challenges
+sessions
+```
 
+Later milestones add social and analytics tables such as:
+
+```text
 follows
-  follower_user_id
-  followed_user_id
-  created_at
-
 profile_views
 link_clicks
-sessions
 ```
 
 ## AT Protocol strategy
@@ -145,10 +157,16 @@ Planned sequence:
 
 ## Security model
 
-Public profile reads are anonymous. All future mutations require an authenticated session and ownership checks. URLs and user content are treated as untrusted input. Redirect targets, embeds, uploaded media, and custom themes must be validated/sanitized before render.
+Public profile reads are anonymous. All mutations require an authenticated session and ownership checks. The browser never submits a user ID as mutation authority; ownership comes from the server-side session and is rechecked at the persistence layer.
 
-Authentication secrets, email provider credentials, billing credentials, and ATProto OAuth secrets remain server-side environment/secret-manager values and are never embedded in the SPA.
+Verification codes are HMAC-hashed before storage. Raw session bearer tokens are never stored in the database. Hosted cookies are `HttpOnly`, `Secure`, and `SameSite=Lax`.
+
+URLs and user content are treated as untrusted input. Redirect targets, embeds, uploaded media, and custom themes must be validated/sanitized before render.
+
+Authentication secrets, SMTP credentials, database tokens, billing credentials, and ATProto OAuth secrets remain server-side environment/secret-manager values and are never embedded in the SPA.
 
 ## Observability
 
-The Go service uses structured `slog` logging. Before public beta, add request IDs, latency/status metrics, panic recovery, health/readiness separation, and error reporting. Analytics events for profile views and link clicks belong in the product analytics pipeline rather than application logs.
+The Go service uses structured `slog` logging. Database sync failures are warnings rather than code/token dumps; authentication codes are never logged in hosted mode.
+
+Before public beta, add request IDs, latency/status metrics, panic recovery, health/readiness separation, and error reporting. Analytics events for profile views and link clicks belong in the product analytics pipeline rather than application logs.

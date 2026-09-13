@@ -17,6 +17,7 @@ The first product goal is Linktree-level utility. The longer-term differentiator
 - StyleX
 - TypeScript
 - SQLite locally with Atlas-managed schema
+- Turso Database sync for hosted persistence
 
 ## Branches
 
@@ -64,7 +65,21 @@ Open:
 - `http://localhost:5173/settings`
 - `http://localhost:5173/@chrisdontmiss`
 
-The no-database startup path still serves the original in-memory demo profile, but authenticated editing requires managed durable storage.
+The no-database startup path serves the seeded public demo only in development. Authenticated editing requires managed durable storage, and `VUTAME_ENV=production` refuses to start without a persistent backend.
+
+## Hosted database
+
+Hosted Vutame uses a local Turso replica synchronized with Turso Cloud:
+
+```bash
+VUTAME_ENV=production
+VUTAME_TURSO_REMOTE_URL='https://database.region.turso.io'
+VUTAME_TURSO_AUTH_TOKEN='database-token'
+VUTAME_TURSO_LOCAL_PATH='/tmp/vutame.db'
+VUTAME_TURSO_SYNC_INTERVAL='5s'
+```
+
+Atlas applies `internal/dbschema/schema.sql` to the remote database before deployment. See [`docs/deployment.md`](docs/deployment.md) for the full setup and rollout order.
 
 ## Hosted auth email
 
@@ -87,7 +102,7 @@ npm run build
 ./vutame
 ```
 
-`vite build` writes to `internal/web/dist`. The Go build embeds that directory so the deployable artifact is one binary.
+`vite build` writes to `internal/web/dist`. The Go build embeds that directory so the deployable artifact is one binary. Server tests and builds run with `CGO_ENABLED=0`.
 
 ## Verify
 
@@ -97,4 +112,4 @@ npm run verify
 
 ## Documentation
 
-Start with [`docs/README.md`](docs/README.md), then read the [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and current [M1 milestone](docs/milestones/m1-accounts-persistence.md).
+Start with [`docs/README.md`](docs/README.md), then read the [architecture](docs/architecture.md), [deployment guide](docs/deployment.md), [roadmap](docs/roadmap.md), and current [M1 milestone](docs/milestones/m1-accounts-persistence.md).
