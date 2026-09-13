@@ -97,6 +97,9 @@ export function EditorPage() {
         url: field(data, "url"),
         kind: normalizeLinkKind(field(data, "kind")),
         thumbnail_url: field(data, "thumbnail_url"),
+        featured: checked(data, "featured"),
+        visible_from: toRFC3339(field(data, "visible_from")),
+        visible_until: toRFC3339(field(data, "visible_until")),
         is_active: true,
       });
       form.reset();
@@ -121,6 +124,9 @@ export function EditorPage() {
         url: field(data, "url"),
         kind: normalizeLinkKind(field(data, "kind")),
         thumbnail_url: field(data, "thumbnail_url"),
+        featured: checked(data, "featured"),
+        visible_from: toRFC3339(field(data, "visible_from")),
+        visible_until: toRFC3339(field(data, "visible_until")),
         is_active: link.is_active,
       });
       await refreshProfile();
@@ -142,10 +148,13 @@ export function EditorPage() {
         url: link.url,
         kind: link.kind,
         thumbnail_url: link.thumbnail_url ?? "",
+        featured: link.featured,
+        visible_from: link.visible_from ?? "",
+        visible_until: link.visible_until ?? "",
         is_active: !link.is_active,
       });
       await refreshProfile();
-      setMessage(link.is_active ? "Link hidden from your public Vuta." : "Link is public again.");
+      setMessage(link.is_active ? "Link hidden from your public Vuta." : "Link is enabled again.");
     } catch (reason) {
       setError(readableError(reason));
     } finally {
@@ -244,7 +253,7 @@ export function EditorPage() {
 
                     <form {...sx(styles.panel)} onSubmit={addLink}>
                       <h2 {...sx(styles.sectionTitle)}>Add link</h2>
-                      <p {...sx(styles.sectionCopy)}>Choose a typed link. Add an optional thumbnail for a richer project or content card.</p>
+                      <p {...sx(styles.sectionCopy)}>Create a normal or featured link. Optional start/end times control when it appears publicly.</p>
                       <div {...sx(styles.grid)}>
                         <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>LABEL</span>
@@ -265,19 +274,36 @@ export function EditorPage() {
                         <span {...sx(styles.label)}>THUMBNAIL URL <span {...sx(styles.optional)}>OPTIONAL</span></span>
                         <input {...sx(styles.input)} name="thumbnail_url" type="url" placeholder="https://example.com/card.jpg" />
                       </label>
+                      <label {...sx(styles.checkRow)}>
+                        <input type="checkbox" name="featured" />
+                        <span><strong>Feature this link</strong><small>Featured links stay above normal links while preserving manual order.</small></span>
+                      </label>
+                      <div {...sx(styles.grid)}>
+                        <label {...sx(styles.field)}>
+                          <span {...sx(styles.label)}>VISIBLE FROM <span {...sx(styles.optional)}>OPTIONAL</span></span>
+                          <input {...sx(styles.input)} name="visible_from" type="datetime-local" />
+                        </label>
+                        <label {...sx(styles.field)}>
+                          <span {...sx(styles.label)}>VISIBLE UNTIL <span {...sx(styles.optional)}>OPTIONAL</span></span>
+                          <input {...sx(styles.input)} name="visible_until" type="datetime-local" />
+                        </label>
+                      </div>
                       <button {...sx(styles.button)} type="submit" disabled={busy()}>Add link</button>
                     </form>
 
                     <div {...sx(styles.panel)}>
                       <h2 {...sx(styles.sectionTitle)}>Links</h2>
-                      <p {...sx(styles.sectionCopy)}>Reorder, hide, edit, or remove links. Typed links render a platform badge when no thumbnail is set.</p>
+                      <p {...sx(styles.sectionCopy)}>Owned links stay visible here even while scheduled or expired. Public profiles only show enabled links inside their visibility window.</p>
                       <Show when={item().links.length > 0} fallback={<p {...sx(styles.copy)}>No links yet. Add your first one above.</p>}>
                         <For each={item().links}>
                           {(link, index) => (
                             <form {...sx(styles.linkCard)} onSubmit={(event) => saveLink(event, link)}>
                               <div {...sx(styles.linkHeader)}>
                                 <strong>{index() + 1}. {link.label}</strong>
-                                <span {...sx(styles.badge, !link.is_active && styles.mutedBadge)}>{link.is_active ? "PUBLIC" : "HIDDEN"}</span>
+                                <div {...sx(styles.actions)}>
+                                  <Show when={link.featured}><span {...sx(styles.badge)}>FEATURED</span></Show>
+                                  <span {...sx(styles.badge, linkStatus(link) !== "PUBLIC" && styles.mutedBadge)}>{linkStatus(link)}</span>
+                                </div>
                               </div>
                               <div {...sx(styles.grid)}>
                                 <label {...sx(styles.field)}>
@@ -299,11 +325,25 @@ export function EditorPage() {
                                 <span {...sx(styles.label)}>THUMBNAIL URL <span {...sx(styles.optional)}>OPTIONAL</span></span>
                                 <input {...sx(styles.input)} name="thumbnail_url" type="url" value={link.thumbnail_url ?? ""} placeholder="https://example.com/card.jpg" />
                               </label>
+                              <label {...sx(styles.checkRow)}>
+                                <input type="checkbox" name="featured" checked={link.featured} />
+                                <span><strong>Featured</strong><small>Show this ahead of non-featured links when it is publicly visible.</small></span>
+                              </label>
+                              <div {...sx(styles.grid)}>
+                                <label {...sx(styles.field)}>
+                                  <span {...sx(styles.label)}>VISIBLE FROM <span {...sx(styles.optional)}>OPTIONAL</span></span>
+                                  <input {...sx(styles.input)} name="visible_from" type="datetime-local" value={toLocalDateTime(link.visible_from)} />
+                                </label>
+                                <label {...sx(styles.field)}>
+                                  <span {...sx(styles.label)}>VISIBLE UNTIL <span {...sx(styles.optional)}>OPTIONAL</span></span>
+                                  <input {...sx(styles.input)} name="visible_until" type="datetime-local" value={toLocalDateTime(link.visible_until)} />
+                                </label>
+                              </div>
                               <div {...sx(styles.actions)}>
                                 <button {...sx(styles.button)} type="submit" disabled={busy()}>Save</button>
                                 <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy() || index() === 0} onClick={() => void moveLink(index(), -1)}>↑ Up</button>
                                 <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy() || index() === item().links.length - 1} onClick={() => void moveLink(index(), 1)}>↓ Down</button>
-                                <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void toggleLink(link)}>{link.is_active ? "Hide" : "Show"}</button>
+                                <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void toggleLink(link)}>{link.is_active ? "Disable" : "Enable"}</button>
                                 <button {...sx(styles.button, styles.danger)} type="button" disabled={busy()} onClick={() => void removeLink(link)}>Delete</button>
                               </div>
                             </form>
@@ -386,6 +426,33 @@ export function SettingsPage() {
 function field(data: FormData, name: string) {
   const value = data.get(name);
   return typeof value === "string" ? value : "";
+}
+
+function checked(data: FormData, name: string) {
+  return data.has(name);
+}
+
+function toRFC3339(value: string) {
+  const clean = value.trim();
+  if (!clean) return "";
+  const date = new Date(clean);
+  return Number.isNaN(date.getTime()) ? clean : date.toISOString();
+}
+
+function toLocalDateTime(value: string | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function linkStatus(link: Link) {
+  if (!link.is_active) return "DISABLED";
+  const now = Date.now();
+  if (link.visible_from && now < new Date(link.visible_from).getTime()) return "SCHEDULED";
+  if (link.visible_until && now >= new Date(link.visible_until).getTime()) return "EXPIRED";
+  return "PUBLIC";
 }
 
 function readableError(reason: unknown) {
