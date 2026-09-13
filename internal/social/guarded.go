@@ -105,9 +105,10 @@ func (s *GuardedStore) SearchPage(ctx context.Context, input SearchInput, viewer
 	cursor := input.Cursor
 	result := CreatorPage{Creators: make([]Creator, 0, wanted)}
 	for len(result.Creators) < wanted {
+		remaining := wanted - len(result.Creators)
 		request := input
 		request.Cursor = cursor
-		request.Limit = wanted
+		request.Limit = remaining
 		page, err := s.base.SearchPage(ctx, request, viewerUserID)
 		if err != nil {
 			return CreatorPage{}, err
@@ -115,10 +116,6 @@ func (s *GuardedStore) SearchPage(ctx context.Context, input SearchInput, viewer
 		visible, err := s.filterCreators(ctx, page.Creators, viewerUserID, true)
 		if err != nil {
 			return CreatorPage{}, err
-		}
-		remaining := wanted - len(result.Creators)
-		if len(visible) > remaining {
-			visible = visible[:remaining]
 		}
 		result.Creators = append(result.Creators, visible...)
 		cursor = page.NextCursor
