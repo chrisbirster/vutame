@@ -17,4 +17,5 @@ FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=server /out/vutame /vutame
 EXPOSE 8080
 ENV PORT=8080
+ENV VUTAME_ENV=production
 ENTRYPOINT ["/vutame"]
