@@ -242,18 +242,21 @@ func (s *SQLiteStore) CreateLink(ctx context.Context, userID string, input LinkI
 		return Link{}, fmt.Errorf("generate link id: %w", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	active := boolInt(input.IsActive)
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO links (id, user_id, label, url, kind, thumbnail_url, position, is_active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, id, userID, input.Label, input.URL, input.Kind, input.ThumbnailURL, position, active, now, now)
+		INSERT INTO links (id, user_id, label, url, kind, thumbnail_url, featured, visible_from, visible_until, position, is_active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, id, userID, input.Label, input.URL, input.Kind, input.ThumbnailURL, boolInt(input.Featured), nullString(input.VisibleFrom), nullString(input.VisibleUntil), position, boolInt(input.IsActive), now, now)
 	if err != nil {
 		return Link{}, fmt.Errorf("create link: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return Link{}, fmt.Errorf("commit create link: %w", err)
 	}
-	return Link{ID: id, Label: input.Label, URL: input.URL, Kind: input.Kind, ThumbnailURL: input.ThumbnailURL, Position: position, IsActive: input.IsActive}, nil
+	return Link{
+		ID: id, Label: input.Label, URL: input.URL, Kind: input.Kind, ThumbnailURL: input.ThumbnailURL,
+		Featured: input.Featured, VisibleFrom: input.VisibleFrom, VisibleUntil: input.VisibleUntil,
+		Position: position, IsActive: input.IsActive,
+	}, nil
 }
 
 func (s *SQLiteStore) UpdateLink(ctx context.Context, userID, linkID string, input LinkInput) (Link, error) {
@@ -263,9 +266,9 @@ func (s *SQLiteStore) UpdateLink(ctx context.Context, userID, linkID string, inp
 	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE links
-		SET label = ?, url = ?, kind = ?, thumbnail_url = ?, is_active = ?, updated_at = ?
+		SET label = ?, url = ?, kind = ?, thumbnail_url = ?, featured = ?, visible_from = ?, visible_until = ?, is_active = ?, updated_at = ?
 		WHERE id = ? AND user_id = ?
-	`, input.Label, input.URL, input.Kind, input.ThumbnailURL, boolInt(input.IsActive), time.Now().UTC().Format(time.RFC3339Nano), strings.TrimSpace(linkID), strings.TrimSpace(userID))
+	`, input.Label, input.URL, input.Kind, input.ThumbnailURL, boolInt(input.Featured), nullString(input.VisibleFrom), nullString(input.VisibleUntil), boolInt(input.IsActive), time.Now().UTC().Format(time.RFC3339Nano), strings.TrimSpace(linkID), strings.TrimSpace(userID))
 	if err != nil {
 		return Link{}, fmt.Errorf("update link: %w", err)
 	}
@@ -277,7 +280,7 @@ func (s *SQLiteStore) UpdateLink(ctx context.Context, userID, linkID string, inp
 		return Link{}, ErrNotFound
 	}
 	item, err := scanLink(s.db.QueryRowContext(ctx, `
-		SELECT id, label, url, kind, thumbnail_url, position, is_active
+		SELECT id, label, url, kind, thumbnail_url, featured, visible_from, visible_until, position, is_active
 		FROM links WHERE id = ? AND user_id = ?
 	`, strings.TrimSpace(linkID), strings.TrimSpace(userID)))
 	if err != nil {
@@ -376,7 +379,7 @@ func (s *SQLiteStore) profileForUser(ctx context.Context, userID string) (Profil
 
 func (s *SQLiteStore) linksForUserContext(ctx context.Context, userID string) ([]Link, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, label, url, kind, thumbnail_url, position, is_active
+		SELECT id, label, url, kind, thumbnail_url, featured, visible_from, visible_until, position, is_active
 		FROM links WHERE user_id = ? ORDER BY position, id
 	`, userID)
 	if err != nil {
@@ -414,12 +417,20 @@ func scanProfile(row rowScanner) (Profile, error) {
 
 func scanLink(row rowScanner) (Link, error) {
 	var item Link
-	var active int
-	if err := row.Scan(&item.ID, &item.Label, &item.URL, &item.Kind, &item.ThumbnailURL, &item.Position, &active); err != nil {
+	var featured, active int
+	var visibleFrom, visibleUntil sql.NullString
+	if err := row.Scan(&item.ID, &item.Label, &item.URL, &item.Kind, &item.ThumbnailURL, &featured, &visibleFrom, &visibleUntil, &item.Position, &active); err != nil {
 		return Link{}, err
 	}
 	item.Kind = NormalizeLinkKind(item.Kind)
+	item.Featured = featured != 0
 	item.IsActive = active != 0
+	if visibleFrom.Valid {
+		item.VisibleFrom = visibleFrom.String
+	}
+	if visibleUntil.Valid {
+		item.VisibleUntil = visibleUntil.String
+	}
 	return item, nil
 }
 
@@ -470,6 +481,13 @@ func boolInt(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+func nullString(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }
 
 func randomOpaqueID(prefix string, size int) (string, error) {
