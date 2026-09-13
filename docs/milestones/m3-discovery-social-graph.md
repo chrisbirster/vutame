@@ -27,8 +27,10 @@ Goal: turn Vutame from isolated creator profiles into a browsable creator networ
 - [x] Add opaque cursor pagination to following and recent activity feeds.
 - [x] Add a responsive `/feed` UI with Following, Recent, Trending, and load-more states.
 - [x] Add SQLite and Turso coverage for activity/feed behavior.
-- [ ] Add cursor pagination to creator search/discovery results.
-- [ ] CI green on the exact activity-feed feature head and merge into `dev`.
+- [x] Activity-feed exact-head CI and Docker gate green; merged into `dev`.
+- [x] Add cursor pagination to creator search/discovery results with duplicate-safe load-more UI.
+- [x] Add SQLite, HTTP, and Turso coverage for discovery cursors.
+- [ ] Discovery-pagination exact-head CI green and merge into `dev`.
 
 ## Slice 3 — safety and rollout controls
 
