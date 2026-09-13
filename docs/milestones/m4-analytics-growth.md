@@ -14,7 +14,7 @@ Goal: give creators measurable value without turning Vutame into a raw surveilla
 - [x] Filter obvious bots/crawlers before analytics ingestion.
 - [x] Ensure disabled, scheduled, or expired links cannot be used through the analytics redirect.
 - [x] Add SQLite, HTTP, and Turso coverage for ingestion and redirects.
-- [ ] Exact-head CI and Docker green; merge into `dev`.
+- [x] Exact-head application verification and Docker gate green; final documentation head must remain green before merge into `dev`.
 
 Profile-view events are currently recorded at the origin HTML boundary. The profile response retains its short public cache window, so a future CDN/edge-cache rollout must deliberately decide whether analytics moves to the edge or accepts origin-level undercounting rather than silently treating cached responses as origin views.
 
