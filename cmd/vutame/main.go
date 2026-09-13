@@ -18,6 +18,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/httpapi"
 	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
+	"github.com/chrisbirster/vutame/internal/safety"
 	"github.com/chrisbirster/vutame/internal/social"
 	webapp "github.com/chrisbirster/vutame/internal/web"
 )
@@ -55,6 +56,11 @@ func main() {
 		slog.Error("open media service", "error", err)
 		os.Exit(1)
 	}
+	safetyStore, err := openSafetyStore(databaseRuntime)
+	if err != nil {
+		slog.Error("open safety store", "error", err)
+		os.Exit(1)
+	}
 	socialStore, err := openSocialStore(databaseRuntime)
 	if err != nil {
 		slog.Error("open social graph store", "error", err)
@@ -77,6 +83,7 @@ func main() {
 			Media:           mediaService,
 			Social:          socialStore,
 			Activity:        activityStore,
+			Safety:          safetyStore,
 			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -103,6 +110,7 @@ func main() {
 		"media_enabled", mediaService != nil,
 		"social_enabled", socialStore != nil,
 		"activity_enabled", activityStore != nil,
+		"safety_enabled", safetyStore != nil,
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
@@ -150,14 +158,29 @@ func openSocialStore(runtime *datastore.Runtime) (social.Store, error) {
 	if runtime == nil || runtime.DB == nil {
 		return nil, nil
 	}
-	return social.NewSQLiteStore(runtime.DB)
+	base, err := social.NewSQLiteStore(runtime.DB)
+	if err != nil {
+		return nil, err
+	}
+	return social.NewGuardedStore(base, runtime.DB)
 }
 
 func openActivityStore(runtime *datastore.Runtime) (activity.Store, error) {
 	if runtime == nil || runtime.DB == nil {
 		return nil, nil
 	}
-	return activity.NewSQLiteStore(runtime.DB)
+	base, err := activity.NewSQLiteStore(runtime.DB)
+	if err != nil {
+		return nil, err
+	}
+	return activity.NewGuardedStore(base, runtime.DB)
+}
+
+func openSafetyStore(runtime *datastore.Runtime) (safety.Store, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	return safety.NewSQLiteStore(runtime.DB)
 }
 
 func openAuthService(runtime *datastore.Runtime, cookieSecure bool) (*auth.Service, error) {
