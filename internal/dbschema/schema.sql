@@ -124,6 +124,20 @@ CREATE TABLE activity_events (
 CREATE INDEX activity_events_created_idx ON activity_events(created_at DESC, id DESC);
 CREATE INDEX activity_events_user_created_idx ON activity_events(user_id, created_at DESC, id DESC);
 
+CREATE TABLE analytics_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  link_id TEXT REFERENCES links(id) ON DELETE SET NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('profile_view', 'link_click')),
+  referrer_host TEXT NOT NULL DEFAULT '',
+  device_class TEXT NOT NULL DEFAULT 'unknown' CHECK (device_class IN ('desktop', 'mobile', 'tablet', 'unknown')),
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX analytics_events_user_created_idx ON analytics_events(user_id, created_at DESC, id DESC);
+CREATE INDEX analytics_events_link_created_idx ON analytics_events(link_id, created_at DESC, id DESC);
+CREATE INDEX analytics_events_kind_created_idx ON analytics_events(kind, created_at DESC, id DESC);
+
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
