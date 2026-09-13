@@ -227,20 +227,29 @@ func (s *SQLiteStore) userIDForHandle(ctx context.Context, handle string) (strin
 }
 
 func (s *SQLiteStore) scanCreators(ctx context.Context, rows *sql.Rows, viewerUserID string) ([]Creator, error) {
-	defer rows.Close()
-	items := make([]Creator, 0)
+	materialized := make([]creatorRow, 0)
 	for rows.Next() {
 		item, err := scanCreator(rows)
 		if err != nil {
+			_ = rows.Close()
 			return nil, fmt.Errorf("scan creator: %w", err)
 		}
-		if err := s.decorateCreator(ctx, &item, viewerUserID); err != nil {
-			return nil, err
-		}
-		items = append(items, item.creator)
+		materialized = append(materialized, item)
 	}
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return nil, fmt.Errorf("iterate creators: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close creator rows: %w", err)
+	}
+
+	items := make([]Creator, 0, len(materialized))
+	for index := range materialized {
+		if err := s.decorateCreator(ctx, &materialized[index], viewerUserID); err != nil {
+			return nil, err
+		}
+		items = append(items, materialized[index].creator)
 	}
 	return items, nil
 }
