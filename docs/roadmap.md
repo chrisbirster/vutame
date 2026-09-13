@@ -44,6 +44,8 @@ Exit criteria: a new user can sign in, claim `vuta.me/@name`, add/reorder links,
 
 ## M2 — Linktree parity and profile design
 
+Status: **complete**
+
 Goal: make Vutame useful enough to replace a conventional link-in-bio product.
 
 Tasks:
@@ -55,15 +57,17 @@ Tasks:
 - Link thumbnails and rich preview cards.
 - Scheduled links and temporary visibility windows.
 - Featured/pinned links.
-- YouTube/Spotify/TikTok/GitHub and generic OpenGraph embeds where safe.
+- Provider-aware GitHub/YouTube/Spotify/TikTok and generic OpenGraph enrichment where safe, rendered as Vutame-native cards rather than arbitrary third-party iframe code.
 - QR code generation.
 - SEO/OG metadata for public profiles.
 - Accessibility and mobile performance pass.
 - Importer for Linktree-style exported/link lists where legally/technically possible.
 
-Exit criteria: a creator can reproduce a polished existing link-in-bio page without losing core presentation features.
+Exit criteria: **satisfied.** A creator can reproduce a polished existing link-in-bio page without losing core presentation features.
 
 ## M3 — Discovery and social graph
+
+Status: **next**
 
 Goal: turn isolated link pages into a network.
 
