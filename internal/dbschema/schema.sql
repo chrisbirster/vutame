@@ -25,6 +25,7 @@ CREATE TABLE links (
   label TEXT NOT NULL,
   url TEXT NOT NULL,
   kind TEXT NOT NULL DEFAULT 'website',
+  thumbnail_url TEXT NOT NULL DEFAULT '',
   position INTEGER NOT NULL DEFAULT 0,
   is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
   created_at TEXT NOT NULL,

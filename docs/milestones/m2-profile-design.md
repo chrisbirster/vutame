@@ -15,22 +15,27 @@ Goal: make Vutame polished and expressive enough to replace a conventional link-
 - [x] Preview display name, bio, avatar URL, and theme changes before save.
 - [x] Persist the selected theme through SQLite/Turso and expose it in public profile JSON.
 - [x] Add domain, SQLite, HTTP lifecycle, and Turso-engine theme coverage.
-- [ ] CI green on the exact feature head.
-- [ ] Merge the slice into `dev`.
+- [x] CI green on the exact feature head.
+- [x] Merge the slice into `dev`.
 
 ## Slice 2 — media and typed social links
 
 - [ ] Add an avatar/media upload abstraction with validation, size limits, and safe content types.
 - [ ] Add durable uploaded-avatar metadata and replacement/delete behavior.
-- [ ] Define typed social link kinds for major creator/developer platforms.
-- [ ] Render recognizable social icons without making arbitrary user HTML possible.
-- [ ] Add editor controls for choosing link kind and platform-specific metadata.
-- [ ] Keep generic website/project links as a first-class fallback.
-- [ ] Add accessibility labels for icon-only or platform-enhanced links.
+- [x] Define typed link kinds for website, project, GitHub, YouTube, Instagram, TikTok, X, Bluesky, LinkedIn, Spotify, newsletter, and shop links.
+- [x] Render recognizable platform badges without allowing arbitrary user HTML.
+- [x] Add editor controls for choosing link kind and optional rich-card thumbnail metadata.
+- [x] Keep generic website/project links as first-class fallbacks.
+- [x] Keep visible labels and kind text alongside platform badges rather than relying on icon-only controls.
+- [x] Validate link kinds and thumbnail URLs in the Go domain layer.
+- [x] Persist typed-link metadata through the shared SQLite/Turso store.
+- [x] Add domain, SQLite, authenticated HTTP, and Turso-engine coverage for rich links.
+- [ ] CI green on the exact rich-links feature head.
+- [ ] Merge the rich-links feature into `dev`.
 
 ## Slice 3 — richer link presentation
 
-- [ ] Add optional link thumbnails.
+- [x] Add optional link thumbnails and render them through the shared public/preview surface.
 - [ ] Add featured/pinned links.
 - [ ] Add scheduled links and temporary visibility windows.
 - [ ] Add safe generic OpenGraph preview metadata.

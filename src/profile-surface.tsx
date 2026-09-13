@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 import type { Profile } from "./api";
+import { linkKindMeta } from "./link-kinds";
 import { profileSurfaceStyles as styles } from "./profile-surface.stylex";
 
 const sx = stylex.attrs;
@@ -51,18 +52,39 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
       >
         <div {...sx(styles.stack, props.preview && styles.previewStack)}>
           <For each={links()}>
-            {(link) => (
-              <a
-                {...sx(styles.link, props.preview && styles.previewLink, theme().link)}
-                href={props.preview ? undefined : link.url}
-                target={props.preview ? undefined : "_blank"}
-                rel={props.preview ? undefined : "noreferrer"}
-                aria-disabled={props.preview ? "true" : undefined}
-              >
-                <span>{link.label}</span>
-                <span aria-hidden="true">↗</span>
-              </a>
-            )}
+            {(link) => {
+              const meta = () => linkKindMeta(link.kind);
+              return (
+                <a
+                  {...sx(styles.link, props.preview && styles.previewLink, theme().link)}
+                  href={props.preview ? undefined : link.url}
+                  target={props.preview ? undefined : "_blank"}
+                  rel={props.preview ? undefined : "noreferrer"}
+                  aria-disabled={props.preview ? "true" : undefined}
+                >
+                  <span {...sx(styles.linkLead)}>
+                    <Show
+                      when={link.thumbnail_url}
+                      fallback={<span {...sx(styles.kindBadge, props.preview && styles.previewKindBadge)}>{meta().badge}</span>}
+                    >
+                      {(thumbnailURL) => (
+                        <img
+                          {...sx(styles.thumbnail, props.preview && styles.previewThumbnail)}
+                          src={thumbnailURL()}
+                          alt=""
+                          loading={props.preview ? "eager" : "lazy"}
+                        />
+                      )}
+                    </Show>
+                    <span {...sx(styles.linkCopy)}>
+                      <span {...sx(styles.linkLabel)}>{link.label}</span>
+                      <span {...sx(styles.linkKind, theme().bio)}>{meta().label}</span>
+                    </span>
+                  </span>
+                  <span {...sx(styles.arrow)} aria-hidden="true">↗</span>
+                </a>
+              );
+            }}
           </For>
         </div>
       </Show>
