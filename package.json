@@ -1,0 +1,36 @@
+{
+  "name": "vutame",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:api": "go run ./cmd/vutame",
+    "typecheck": "tsc --noEmit",
+    "go:deps": "go mod download",
+    "test": "npm run go:deps && CGO_ENABLED=0 go test ./...",
+    "db:schema:plan": "atlas schema apply --env local --dry-run",
+    "db:schema:apply": "atlas schema apply --env local --auto-approve",
+    "db:schema:production:plan": "atlas schema apply --env production --dry-run",
+    "db:schema:production:apply": "atlas schema apply --env production --auto-approve",
+    "build:web": "vite build",
+    "build:server": "npm run go:deps && CGO_ENABLED=0 go build ./cmd/vutame",
+    "build": "npm run build:web && npm run build:server",
+    "verify": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@solidjs/router": "2.0.0-next.17",
+    "@solidjs/web": "2.0.0-rc.1",
+    "@stylexjs/stylex": "0.19.0",
+    "solid-js": "2.0.0-rc.1"
+  },
+  "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.29",
+    "@stylexjs/unplugin": "0.19.0",
+    "typescript": "5.9.2",
+    "vite": "8.2.1"
+  }
+}
