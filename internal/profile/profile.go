@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -52,7 +53,7 @@ var supportedLinkKinds = map[string]struct{}{
 	"spotify":    {},
 	"newsletter": {},
 	"shop":       {},
-	"social":     {}, // legacy generic social kind from the M1 seed/profile model.
+	"social":     {},
 }
 
 type Link struct {
@@ -61,6 +62,9 @@ type Link struct {
 	URL          string `json:"url"`
 	Kind         string `json:"kind"`
 	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	Featured     bool   `json:"featured"`
+	VisibleFrom  string `json:"visible_from,omitempty"`
+	VisibleUntil string `json:"visible_until,omitempty"`
 	Position     int    `json:"position"`
 	IsActive     bool   `json:"is_active"`
 }
@@ -89,6 +93,9 @@ type LinkInput struct {
 	URL          string `json:"url"`
 	Kind         string `json:"kind"`
 	ThumbnailURL string `json:"thumbnail_url"`
+	Featured     bool   `json:"featured"`
+	VisibleFrom  string `json:"visible_from"`
+	VisibleUntil string `json:"visible_until"`
 	IsActive     bool   `json:"is_active"`
 }
 
@@ -229,6 +236,8 @@ func ValidateLinkInput(input LinkInput) (LinkInput, error) {
 	input.Label = strings.TrimSpace(input.Label)
 	input.URL = strings.TrimSpace(input.URL)
 	input.ThumbnailURL = strings.TrimSpace(input.ThumbnailURL)
+	input.VisibleFrom = strings.TrimSpace(input.VisibleFrom)
+	input.VisibleUntil = strings.TrimSpace(input.VisibleUntil)
 	if input.Label == "" || len(input.Label) > 100 {
 		return LinkInput{}, fmt.Errorf("%w: label must be 1-100 characters", ErrInvalidLink)
 	}
@@ -249,7 +258,35 @@ func ValidateLinkInput(input LinkInput) (LinkInput, error) {
 	if err := validateOptionalHTTPURL(input.ThumbnailURL, "thumbnail URL", ErrInvalidLink); err != nil {
 		return LinkInput{}, err
 	}
+	from, err := normalizeOptionalTimestamp(input.VisibleFrom, "visible_from")
+	if err != nil {
+		return LinkInput{}, err
+	}
+	until, err := normalizeOptionalTimestamp(input.VisibleUntil, "visible_until")
+	if err != nil {
+		return LinkInput{}, err
+	}
+	input.VisibleFrom = from
+	input.VisibleUntil = until
+	if from != "" && until != "" {
+		fromTime, _ := time.Parse(time.RFC3339, from)
+		untilTime, _ := time.Parse(time.RFC3339, until)
+		if !untilTime.After(fromTime) {
+			return LinkInput{}, fmt.Errorf("%w: visible_until must be after visible_from", ErrInvalidLink)
+		}
+	}
 	return input, nil
+}
+
+func normalizeOptionalTimestamp(value, field string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s must be an RFC3339 timestamp", ErrInvalidLink, field)
+	}
+	return parsed.UTC().Format(time.RFC3339), nil
 }
 
 func validateRequiredHTTPURL(value, field string, sentinel error) error {
@@ -306,23 +343,46 @@ func (s *MemoryStore) HandleAvailable(handle string) (bool, error) {
 }
 
 func publicProfile(item Profile) Profile {
+	return publicProfileAt(item, time.Now().UTC())
+}
+
+func publicProfileAt(item Profile, now time.Time) Profile {
 	copy := cloneProfile(item)
 	copy.Theme = NormalizeTheme(copy.Theme)
 	links := copy.Links[:0]
 	for _, link := range copy.Links {
-		if link.IsActive {
+		if link.IsActive && linkVisibleAt(link, now) {
 			link.Kind = NormalizeLinkKind(link.Kind)
 			links = append(links, link)
 		}
 	}
 	copy.Links = links
 	sort.SliceStable(copy.Links, func(i, j int) bool {
+		if copy.Links[i].Featured != copy.Links[j].Featured {
+			return copy.Links[i].Featured
+		}
 		if copy.Links[i].Position == copy.Links[j].Position {
 			return copy.Links[i].ID < copy.Links[j].ID
 		}
 		return copy.Links[i].Position < copy.Links[j].Position
 	})
 	return copy
+}
+
+func linkVisibleAt(link Link, now time.Time) bool {
+	if link.VisibleFrom != "" {
+		from, err := time.Parse(time.RFC3339Nano, link.VisibleFrom)
+		if err != nil || now.Before(from) {
+			return false
+		}
+	}
+	if link.VisibleUntil != "" {
+		until, err := time.Parse(time.RFC3339Nano, link.VisibleUntil)
+		if err != nil || !now.Before(until) {
+			return false
+		}
+	}
+	return true
 }
 
 func cloneProfile(item Profile) Profile {
