@@ -32,7 +32,7 @@ func registerSocialRoutes(mux *http.ServeMux, profiles profile.Store, options Op
 					Interests: []string{},
 				})
 			}
-			writeJSON(w, http.StatusOK, map[string]any{"creators": creators})
+			writeJSON(w, http.StatusOK, social.CreatorPage{Creators: creators})
 			return
 		}
 		limit := 0
@@ -44,19 +44,23 @@ func registerSocialRoutes(mux *http.ServeMux, profiles profile.Store, options Op
 			}
 			limit = parsed
 		}
-		items, err := options.Social.Search(r.Context(), social.SearchInput{
+		page, err := options.Social.SearchPage(r.Context(), social.SearchInput{
 			Query: r.URL.Query().Get("q"), Category: r.URL.Query().Get("category"),
-			Interest: r.URL.Query().Get("interest"), Limit: limit,
+			Interest: r.URL.Query().Get("interest"), Cursor: r.URL.Query().Get("cursor"), Limit: limit,
 		}, viewerUserID)
 		if errors.Is(err, social.ErrInvalidMetadata) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, social.ErrInvalidCursor) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid cursor"})
 			return
 		}
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"creators": items})
+		writeJSON(w, http.StatusOK, page)
 	})
 
 	mux.HandleFunc("GET /api/v1/creators/{handle}/social", func(w http.ResponseWriter, r *http.Request) {
