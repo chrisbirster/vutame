@@ -1,6 +1,11 @@
-import { createSignal, For } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
-import type { Profile, ProfileUpdate } from "./api";
+import {
+  deleteOwnedAvatar,
+  uploadOwnedAvatar,
+  type Profile,
+  type ProfileUpdate,
+} from "./api";
 import { PROFILE_THEMES, ProfileSurface, normalizeProfileTheme, type ProfileTheme } from "./profile-surface";
 import { profileEditorPanelStyles as styles } from "./profile-editor-panel.stylex";
 
@@ -15,6 +20,9 @@ export function ProfileEditorPanel(props: {
   const [bio, setBio] = createSignal(props.profile.bio);
   const [avatarURL, setAvatarURL] = createSignal(props.profile.avatar_url ?? "");
   const [theme, setTheme] = createSignal<ProfileTheme>(normalizeProfileTheme(props.profile.theme));
+  const [mediaBusy, setMediaBusy] = createSignal(false);
+  const [mediaMessage, setMediaMessage] = createSignal("");
+  const [mediaError, setMediaError] = createSignal("");
 
   const preview = (): Profile => ({
     ...props.profile,
@@ -32,6 +40,40 @@ export function ProfileEditorPanel(props: {
       avatar_url: avatarURL(),
       theme: theme(),
     });
+  }
+
+  async function uploadAvatar(event: Event & { currentTarget: HTMLInputElement }) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    setMediaBusy(true);
+    setMediaMessage("");
+    setMediaError("");
+    try {
+      const asset = await uploadOwnedAvatar(file);
+      setAvatarURL(asset.url);
+      setMediaMessage("Avatar uploaded and saved.");
+    } catch (reason) {
+      setMediaError(reason instanceof Error ? reason.message : "Avatar upload failed.");
+    } finally {
+      input.value = "";
+      setMediaBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setMediaBusy(true);
+    setMediaMessage("");
+    setMediaError("");
+    try {
+      await deleteOwnedAvatar();
+      setAvatarURL("");
+      setMediaMessage("Avatar removed.");
+    } catch (reason) {
+      setMediaError(reason instanceof Error ? reason.message : "Avatar delete failed.");
+    } finally {
+      setMediaBusy(false);
+    }
   }
 
   return (
@@ -60,8 +102,38 @@ export function ProfileEditorPanel(props: {
             onInput={(event) => setBio(event.currentTarget.value)}
           />
         </label>
+
+        <div {...sx(styles.mediaBox)}>
+          <div>
+            <div {...sx(styles.label)}>MANAGED AVATAR</div>
+            <p {...sx(styles.mediaHelp)}>Upload JPEG, PNG, WebP, or GIF up to 5 MB. Vutame stores and serves the current avatar for this profile.</p>
+          </div>
+          <div {...sx(styles.mediaActions)}>
+            <label {...sx(styles.uploadButton, (props.busy || mediaBusy()) && styles.disabledButton)}>
+              {mediaBusy() ? "Working…" : "Upload image"}
+              <input
+                {...sx(styles.fileInput)}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                disabled={props.busy || mediaBusy()}
+                onChange={(event) => void uploadAvatar(event)}
+              />
+            </label>
+            <button
+              {...sx(styles.secondaryButton)}
+              type="button"
+              disabled={props.busy || mediaBusy() || !avatarURL()}
+              onClick={() => void removeAvatar()}
+            >
+              Remove avatar
+            </button>
+          </div>
+          <Show when={mediaMessage()}><div {...sx(styles.mediaMessage)}>{mediaMessage()}</div></Show>
+          <Show when={mediaError()}><div {...sx(styles.mediaError)}>{mediaError()}</div></Show>
+        </div>
+
         <label {...sx(styles.field)}>
-          <span {...sx(styles.label)}>AVATAR URL</span>
+          <span {...sx(styles.label)}>EXTERNAL AVATAR URL <span {...sx(styles.optional)}>OPTIONAL</span></span>
           <input
             {...sx(styles.input)}
             name="avatar_url"
@@ -90,7 +162,7 @@ export function ProfileEditorPanel(props: {
           </For>
         </div>
 
-        <button {...sx(styles.button)} type="submit" disabled={props.busy}>
+        <button {...sx(styles.button)} type="submit" disabled={props.busy || mediaBusy()}>
           {props.busy ? "Saving…" : "Save profile"}
         </button>
       </form>
