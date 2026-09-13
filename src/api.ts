@@ -37,6 +37,13 @@ export type LinkInput = {
   is_active: boolean;
 };
 
+export type MediaAsset = {
+  id: string;
+  url: string;
+  content_type: string;
+  size_bytes: number;
+};
+
 export type AppMeta = {
   product: string;
   marketing_origin: string;
@@ -139,6 +146,26 @@ export async function claimOwnedProfile(handle: string): Promise<Profile> {
 
 export async function updateOwnedProfile(input: ProfileUpdate): Promise<Profile> {
   return mutationJSON<Profile>("PATCH", "/api/v1/me/profile", input);
+}
+
+export async function uploadOwnedAvatar(file: File): Promise<MediaAsset> {
+  const body = new FormData();
+  body.set("file", file);
+  const response = await fetch("/api/v1/me/avatar", {
+    method: "POST",
+    credentials: "same-origin",
+    body,
+  });
+  if (!response.ok) throw await apiError(response, "avatar upload failed");
+  return response.json() as Promise<MediaAsset>;
+}
+
+export async function deleteOwnedAvatar(): Promise<void> {
+  const response = await fetch("/api/v1/me/avatar", {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+  if (!response.ok) throw await apiError(response, "avatar delete failed");
 }
 
 export async function createOwnedLink(input: LinkInput): Promise<Link> {
