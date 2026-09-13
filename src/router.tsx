@@ -1,12 +1,12 @@
 import { createRouter } from "@solidjs/router";
 import {
-  DiscoverPage,
   FollowersPage,
   FollowingPage,
   HomePage,
   NotFoundPage,
   ProfilePage,
 } from "./pages";
+import { DiscoverPage } from "./discover-page";
 import { EditorPage, SettingsPage } from "./editor";
 import { FeedPage } from "./feed";
 import { LinkToolsPage } from "./link-tools";
