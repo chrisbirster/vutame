@@ -69,6 +69,7 @@ func profileHTMLHandler(web http.Handler, profiles profile.Store, options Option
 		}
 
 		rendered := renderProfileHTML(captured.body.String(), item, options.ProfileOrigin)
+		recordProfileView(r, item, options)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -147,7 +148,8 @@ func renderNoScriptProfile(item profile.Profile, canonical, image string) string
 	if len(item.Links) > 0 {
 		output.WriteString(`<ul>`)
 		for _, link := range item.Links {
-			output.WriteString(`<li><a href="` + html.EscapeString(link.URL) + `">` + html.EscapeString(link.Label) + `</a></li>`)
+			tracked := "/out/" + url.PathEscape(link.ID)
+			output.WriteString(`<li><a href="` + html.EscapeString(tracked) + `">` + html.EscapeString(link.Label) + `</a></li>`)
 		}
 		output.WriteString(`</ul>`)
 	}
