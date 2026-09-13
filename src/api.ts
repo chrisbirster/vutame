@@ -13,6 +13,7 @@ export type Profile = {
   display_name: string;
   bio: string;
   avatar_url?: string;
+  theme: string;
   verified: boolean;
   atproto_did?: string;
   links: Link[];
@@ -22,6 +23,7 @@ export type ProfileUpdate = {
   display_name: string;
   bio: string;
   avatar_url: string;
+  theme: string;
 };
 
 export type LinkInput = {
