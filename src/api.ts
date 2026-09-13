@@ -6,6 +6,9 @@ export type Link = {
   url: string;
   kind: LinkKind;
   thumbnail_url?: string;
+  featured: boolean;
+  visible_from?: string;
+  visible_until?: string;
   position: number;
   is_active: boolean;
 };
@@ -34,6 +37,9 @@ export type LinkInput = {
   url: string;
   kind: LinkKind;
   thumbnail_url: string;
+  featured: boolean;
+  visible_from: string;
+  visible_until: string;
   is_active: boolean;
 };
 
