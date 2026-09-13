@@ -1,6 +1,6 @@
 # M2 — Linktree parity and profile design
 
-Status: **in progress — final CI/merge pending**
+Status: **complete**
 
 Goal: make Vutame polished and expressive enough to replace a conventional link-in-bio product while keeping the public profile fast, accessible, and consistent with the creator editor.
 
@@ -65,9 +65,9 @@ Goal: make Vutame polished and expressive enough to replace a conventional link-
 - [x] Add a creator import tool for CSV, tab/pipe-separated, and copied link lists with a 50-link batch cap and review step.
 - [x] Render existing public profiles as escaped semantic `<noscript>` HTML so names, bios, and public links remain usable without JavaScript.
 - [x] Add unit/HTTP coverage for profile metadata/no-JS rendering, QR generation, and safe preview metadata.
-- [ ] CI green on the exact M2 finish feature head.
-- [ ] Merge the M2 finish feature into `dev`.
+- [x] CI green on the exact M2 finish feature head.
+- [x] Merge the M2 finish feature into `dev`.
 
 ## M2 exit criteria
 
-A creator can build a polished Vuta with a distinct visual identity, managed avatar/media, recognizable typed social links, thumbnails, featured/scheduled content, safe metadata enrichment, QR sharing, profile-specific SEO, import tools, and strong mobile accessibility/performance defaults. The creator preview uses the same presentation primitives as the public profile so saved output cannot materially differ from what was previewed.
+**Satisfied.** A creator can build a polished Vuta with a distinct visual identity, managed avatar/media, recognizable typed social links, thumbnails, featured/scheduled content, safe metadata enrichment, QR sharing, profile-specific SEO, import tools, and strong mobile accessibility/performance defaults. The creator preview uses the same presentation primitives as the public profile so saved output cannot materially differ from what was previewed.

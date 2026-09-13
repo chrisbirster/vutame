@@ -8,6 +8,8 @@ This directory is the source of truth for product and engineering decisions.
 - [Deployment](deployment.md) — Turso sync, Atlas schema management, hosted environment variables, and rollout order.
 - [M0 — Foundation](milestones/m0-foundation.md) — completed runtime and domain foundation.
 - [M1 — Accounts and persistence](milestones/m1-accounts-persistence.md) — completed durable storage, authentication, handle claiming, link CRUD, and production persistence.
-- [M2 — Profile design](milestones/m2-profile-design.md) — current milestone for themes, media, richer links, sharing, SEO, and accessibility.
+- [M2 — Profile design](milestones/m2-profile-design.md) — completed themes, media, rich/featured/scheduled links, sharing, SEO, import, and accessibility/performance work.
+
+**Current roadmap milestone: M3 — Discovery and social graph.**
 
 When implementation and documentation disagree, update the documentation in the same pull request that changes the architecture.
