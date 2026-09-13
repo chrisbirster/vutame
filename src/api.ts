@@ -1,8 +1,11 @@
+import type { LinkKind } from "./link-kinds";
+
 export type Link = {
   id: string;
   label: string;
   url: string;
-  kind: string;
+  kind: LinkKind;
+  thumbnail_url?: string;
   position: number;
   is_active: boolean;
 };
@@ -29,7 +32,8 @@ export type ProfileUpdate = {
 export type LinkInput = {
   label: string;
   url: string;
-  kind: string;
+  kind: LinkKind;
+  thumbnail_url: string;
   is_active: boolean;
 };
 
