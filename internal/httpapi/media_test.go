@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -163,5 +162,3 @@ func avatarUploadRequest(t *testing.T, handler http.Handler, cookie *http.Cookie
 	handler.ServeHTTP(rec, req)
 	return rec
 }
-
-var _ = context.Background
