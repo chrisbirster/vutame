@@ -34,6 +34,20 @@ CREATE TABLE links (
 
 CREATE INDEX links_user_position_idx ON links(user_id, position, id);
 
+CREATE TABLE media_assets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slot TEXT NOT NULL CHECK (slot IN ('avatar')),
+  content_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0),
+  storage_key TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(user_id, slot)
+);
+
+CREATE INDEX media_assets_user_idx ON media_assets(user_id);
+
 CREATE TABLE auth_challenges (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL COLLATE NOCASE,
