@@ -17,8 +17,9 @@
     "db:schema:production:plan": "atlas schema apply --env production --dry-run",
     "db:schema:production:apply": "atlas schema apply --env production --auto-approve",
     "build:web": "vite build",
+    "budget:web": "node scripts/check-web-budget.mjs",
     "build:server": "npm run go:deps && CGO_ENABLED=0 go build ./cmd/vutame",
-    "build": "npm run build:web && npm run build:server",
+    "build": "npm run build:web && npm run budget:web && npm run build:server",
     "verify": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
