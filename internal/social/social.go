@@ -11,11 +11,13 @@ import (
 )
 
 var (
-	ErrNotFound        = errors.New("creator not found")
-	ErrSelfFollow      = errors.New("cannot follow yourself")
-	ErrProfileRequired = errors.New("profile required")
-	ErrInvalidMetadata = errors.New("invalid discovery metadata")
-	ErrInvalidCursor   = errors.New("invalid discovery cursor")
+	ErrNotFound           = errors.New("creator not found")
+	ErrSelfFollow         = errors.New("cannot follow yourself")
+	ErrProfileRequired    = errors.New("profile required")
+	ErrInvalidMetadata    = errors.New("invalid discovery metadata")
+	ErrInvalidCursor      = errors.New("invalid discovery cursor")
+	ErrRelationshipBlocked = errors.New("relationship blocked")
+	ErrFollowsDisabled    = errors.New("creator is not accepting follows")
 )
 
 const (
