@@ -20,6 +20,10 @@ type SQLiteStore struct {
 	db *sql.DB
 }
 
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
 func OpenSQLite(dsn string) (*SQLiteStore, error) {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -70,25 +74,15 @@ func (s *SQLiteStore) verifySchema() error {
 }
 
 func (s *SQLiteStore) Get(handle string) (Profile, error) {
-	handle = NormalizeHandle(handle)
-	var item Profile
-	var verified int
-	var did sql.NullString
-	err := s.db.QueryRow(`
+	item, err := scanProfile(s.db.QueryRow(`
 		SELECT user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did
-		FROM profiles
-		WHERE handle = ?
-	`, handle).Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did)
+		FROM profiles WHERE handle = ?
+	`, NormalizeHandle(handle)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Profile{}, ErrNotFound
 	}
 	if err != nil {
 		return Profile{}, fmt.Errorf("get profile: %w", err)
-	}
-	item.Theme = NormalizeTheme(item.Theme)
-	item.Verified = verified != 0
-	if did.Valid {
-		item.ATProtoDID = did.String
 	}
 	item.Links, err = s.linksForUserContext(context.Background(), item.ID)
 	if err != nil {
@@ -100,25 +94,17 @@ func (s *SQLiteStore) Get(handle string) (Profile, error) {
 func (s *SQLiteStore) Discover() ([]Profile, error) {
 	rows, err := s.db.Query(`
 		SELECT user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did
-		FROM profiles
-		ORDER BY handle
+		FROM profiles ORDER BY handle
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("discover profiles: %w", err)
 	}
 	items := make([]Profile, 0)
 	for rows.Next() {
-		var item Profile
-		var verified int
-		var did sql.NullString
-		if err := rows.Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did); err != nil {
+		item, err := scanProfile(rows)
+		if err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("scan discovered profile: %w", err)
-		}
-		item.Theme = NormalizeTheme(item.Theme)
-		item.Verified = verified != 0
-		if did.Valid {
-			item.ATProtoDID = did.String
 		}
 		items = append(items, item)
 	}
@@ -144,9 +130,8 @@ func (s *SQLiteStore) HandleAvailable(handle string) (bool, error) {
 	if err := ValidateHandle(handle); err != nil {
 		return false, err
 	}
-	handle = NormalizeHandle(handle)
 	var count int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM profiles WHERE handle = ?`, handle).Scan(&count); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM profiles WHERE handle = ?`, NormalizeHandle(handle)).Scan(&count); err != nil {
 		return false, fmt.Errorf("check handle availability: %w", err)
 	}
 	return count == 0, nil
@@ -257,21 +242,18 @@ func (s *SQLiteStore) CreateLink(ctx context.Context, userID string, input LinkI
 		return Link{}, fmt.Errorf("generate link id: %w", err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	active := 0
-	if input.IsActive {
-		active = 1
-	}
+	active := boolInt(input.IsActive)
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO links (id, user_id, label, url, kind, position, is_active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, id, userID, input.Label, input.URL, input.Kind, position, active, now, now)
+		INSERT INTO links (id, user_id, label, url, kind, thumbnail_url, position, is_active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, id, userID, input.Label, input.URL, input.Kind, input.ThumbnailURL, position, active, now, now)
 	if err != nil {
 		return Link{}, fmt.Errorf("create link: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return Link{}, fmt.Errorf("commit create link: %w", err)
 	}
-	return Link{ID: id, Label: input.Label, URL: input.URL, Kind: input.Kind, Position: position, IsActive: input.IsActive}, nil
+	return Link{ID: id, Label: input.Label, URL: input.URL, Kind: input.Kind, ThumbnailURL: input.ThumbnailURL, Position: position, IsActive: input.IsActive}, nil
 }
 
 func (s *SQLiteStore) UpdateLink(ctx context.Context, userID, linkID string, input LinkInput) (Link, error) {
@@ -279,15 +261,11 @@ func (s *SQLiteStore) UpdateLink(ctx context.Context, userID, linkID string, inp
 	if err != nil {
 		return Link{}, err
 	}
-	active := 0
-	if input.IsActive {
-		active = 1
-	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE links
-		SET label = ?, url = ?, kind = ?, is_active = ?, updated_at = ?
+		SET label = ?, url = ?, kind = ?, thumbnail_url = ?, is_active = ?, updated_at = ?
 		WHERE id = ? AND user_id = ?
-	`, input.Label, input.URL, input.Kind, active, time.Now().UTC().Format(time.RFC3339Nano), strings.TrimSpace(linkID), strings.TrimSpace(userID))
+	`, input.Label, input.URL, input.Kind, input.ThumbnailURL, boolInt(input.IsActive), time.Now().UTC().Format(time.RFC3339Nano), strings.TrimSpace(linkID), strings.TrimSpace(userID))
 	if err != nil {
 		return Link{}, fmt.Errorf("update link: %w", err)
 	}
@@ -298,12 +276,13 @@ func (s *SQLiteStore) UpdateLink(ctx context.Context, userID, linkID string, inp
 	if rows != 1 {
 		return Link{}, ErrNotFound
 	}
-	var item Link
-	var activeValue int
-	if err := s.db.QueryRowContext(ctx, `SELECT id, label, url, kind, position, is_active FROM links WHERE id = ? AND user_id = ?`, linkID, userID).Scan(&item.ID, &item.Label, &item.URL, &item.Kind, &item.Position, &activeValue); err != nil {
+	item, err := scanLink(s.db.QueryRowContext(ctx, `
+		SELECT id, label, url, kind, thumbnail_url, position, is_active
+		FROM links WHERE id = ? AND user_id = ?
+	`, strings.TrimSpace(linkID), strings.TrimSpace(userID)))
+	if err != nil {
 		return Link{}, fmt.Errorf("load updated link: %w", err)
 	}
-	item.IsActive = activeValue != 0
 	return item, nil
 }
 
@@ -378,23 +357,15 @@ func (s *SQLiteStore) ReorderLinks(ctx context.Context, userID string, ids []str
 }
 
 func (s *SQLiteStore) profileForUser(ctx context.Context, userID string) (Profile, error) {
-	var item Profile
-	var verified int
-	var did sql.NullString
-	err := s.db.QueryRowContext(ctx, `
+	item, err := scanProfile(s.db.QueryRowContext(ctx, `
 		SELECT user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did
 		FROM profiles WHERE user_id = ?
-	`, strings.TrimSpace(userID)).Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did)
+	`, strings.TrimSpace(userID)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Profile{}, ErrNotFound
 	}
 	if err != nil {
 		return Profile{}, fmt.Errorf("get owned profile: %w", err)
-	}
-	item.Theme = NormalizeTheme(item.Theme)
-	item.Verified = verified != 0
-	if did.Valid {
-		item.ATProtoDID = did.String
 	}
 	item.Links, err = s.linksForUserContext(ctx, item.ID)
 	if err != nil {
@@ -405,10 +376,8 @@ func (s *SQLiteStore) profileForUser(ctx context.Context, userID string) (Profil
 
 func (s *SQLiteStore) linksForUserContext(ctx context.Context, userID string) ([]Link, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, label, url, kind, position, is_active
-		FROM links
-		WHERE user_id = ?
-		ORDER BY position, id
+		SELECT id, label, url, kind, thumbnail_url, position, is_active
+		FROM links WHERE user_id = ? ORDER BY position, id
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list profile links: %w", err)
@@ -416,18 +385,42 @@ func (s *SQLiteStore) linksForUserContext(ctx context.Context, userID string) ([
 	defer rows.Close()
 	links := make([]Link, 0)
 	for rows.Next() {
-		var link Link
-		var active int
-		if err := rows.Scan(&link.ID, &link.Label, &link.URL, &link.Kind, &link.Position, &active); err != nil {
+		link, err := scanLink(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan profile link: %w", err)
 		}
-		link.IsActive = active != 0
 		links = append(links, link)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate profile links: %w", err)
 	}
 	return links, nil
+}
+
+func scanProfile(row rowScanner) (Profile, error) {
+	var item Profile
+	var verified int
+	var did sql.NullString
+	if err := row.Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did); err != nil {
+		return Profile{}, err
+	}
+	item.Theme = NormalizeTheme(item.Theme)
+	item.Verified = verified != 0
+	if did.Valid {
+		item.ATProtoDID = did.String
+	}
+	return item, nil
+}
+
+func scanLink(row rowScanner) (Link, error) {
+	var item Link
+	var active int
+	if err := row.Scan(&item.ID, &item.Label, &item.URL, &item.Kind, &item.ThumbnailURL, &item.Position, &active); err != nil {
+		return Link{}, err
+	}
+	item.Kind = NormalizeLinkKind(item.Kind)
+	item.IsActive = active != 0
+	return item, nil
 }
 
 func orderedLinkIDs(ctx context.Context, tx *sql.Tx, userID string) ([]string, error) {
@@ -470,6 +463,13 @@ func applyLinkOrder(ctx context.Context, tx *sql.Tx, userID string, ids []string
 		}
 	}
 	return nil
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func randomOpaqueID(prefix string, size int) (string, error) {
