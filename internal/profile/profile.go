@@ -22,12 +22,20 @@ var (
 const (
 	MinHandleLength = 3
 	MaxHandleLength = 32
+	DefaultTheme    = "midnight"
 )
 
 var reservedHandles = map[string]struct{}{
 	"admin": {}, "api": {}, "create": {}, "discover": {}, "help": {},
 	"login": {}, "me": {}, "settings": {}, "signin": {}, "signup": {},
 	"support": {}, "vuta": {}, "vutame": {},
+}
+
+var supportedThemes = map[string]struct{}{
+	"midnight": {},
+	"paper":    {},
+	"neon":     {},
+	"forest":   {},
 }
 
 type Link struct {
@@ -45,6 +53,7 @@ type Profile struct {
 	DisplayName string `json:"display_name"`
 	Bio         string `json:"bio"`
 	AvatarURL   string `json:"avatar_url,omitempty"`
+	Theme       string `json:"theme"`
 	Verified    bool   `json:"verified"`
 	ATProtoDID  string `json:"atproto_did,omitempty"`
 	Links       []Link `json:"links"`
@@ -54,6 +63,7 @@ type UpdateInput struct {
 	DisplayName string `json:"display_name"`
 	Bio         string `json:"bio"`
 	AvatarURL   string `json:"avatar_url"`
+	Theme       string `json:"theme"`
 }
 
 type LinkInput struct {
@@ -88,6 +98,7 @@ func NewMemoryStore(items []Profile) *MemoryStore {
 	store := &MemoryStore{byHandle: make(map[string]Profile, len(items))}
 	for _, item := range items {
 		item.Handle = NormalizeHandle(item.Handle)
+		item.Theme = NormalizeTheme(item.Theme)
 		store.byHandle[item.Handle] = cloneProfile(item)
 	}
 	return store
@@ -104,6 +115,7 @@ func SeedProfiles() []Profile {
 			Handle:      "chrisdontmiss",
 			DisplayName: "@chrisdontmiss",
 			Bio:         "Building things on the internet.",
+			Theme:       DefaultTheme,
 			Links: []Link{
 				{ID: "lnk_01_github", Label: "GitHub", URL: "https://github.com/chrisbirster", Kind: "social", Position: 0, IsActive: true},
 				{ID: "lnk_02_vutame", Label: "Vutame", URL: "https://vutame.com", Kind: "website", Position: 1, IsActive: true},
@@ -114,6 +126,22 @@ func SeedProfiles() []Profile {
 
 func NormalizeHandle(handle string) string {
 	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(handle), "@"))
+}
+
+func NormalizeTheme(theme string) string {
+	theme = strings.ToLower(strings.TrimSpace(theme))
+	if theme == "" {
+		return DefaultTheme
+	}
+	return theme
+}
+
+func ValidateTheme(theme string) (string, error) {
+	theme = NormalizeTheme(theme)
+	if _, ok := supportedThemes[theme]; !ok {
+		return "", fmt.Errorf("%w: unsupported theme %q", ErrInvalidProfile, theme)
+	}
+	return theme, nil
 }
 
 func ValidateHandle(handle string) error {
@@ -154,6 +182,11 @@ func ValidateUpdateInput(input UpdateInput) (UpdateInput, error) {
 			return UpdateInput{}, fmt.Errorf("%w: avatar URL must be an absolute http(s) URL", ErrInvalidProfile)
 		}
 	}
+	theme, err := ValidateTheme(input.Theme)
+	if err != nil {
+		return UpdateInput{}, err
+	}
+	input.Theme = theme
 	return input, nil
 }
 
@@ -222,6 +255,7 @@ func (s *MemoryStore) HandleAvailable(handle string) (bool, error) {
 
 func publicProfile(item Profile) Profile {
 	copy := cloneProfile(item)
+	copy.Theme = NormalizeTheme(copy.Theme)
 	links := copy.Links[:0]
 	for _, link := range copy.Links {
 		if link.IsActive {
