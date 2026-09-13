@@ -23,6 +23,7 @@ const (
 	MinHandleLength = 3
 	MaxHandleLength = 32
 	DefaultTheme    = "midnight"
+	DefaultLinkKind = "website"
 )
 
 var reservedHandles = map[string]struct{}{
@@ -38,13 +39,30 @@ var supportedThemes = map[string]struct{}{
 	"forest":   {},
 }
 
+var supportedLinkKinds = map[string]struct{}{
+	"website":    {},
+	"project":    {},
+	"github":     {},
+	"youtube":    {},
+	"instagram":  {},
+	"tiktok":     {},
+	"x":          {},
+	"bluesky":    {},
+	"linkedin":   {},
+	"spotify":    {},
+	"newsletter": {},
+	"shop":       {},
+	"social":     {}, // legacy generic social kind from the M1 seed/profile model.
+}
+
 type Link struct {
-	ID       string `json:"id"`
-	Label    string `json:"label"`
-	URL      string `json:"url"`
-	Kind     string `json:"kind"`
-	Position int    `json:"position"`
-	IsActive bool   `json:"is_active"`
+	ID           string `json:"id"`
+	Label        string `json:"label"`
+	URL          string `json:"url"`
+	Kind         string `json:"kind"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	Position     int    `json:"position"`
+	IsActive     bool   `json:"is_active"`
 }
 
 type Profile struct {
@@ -67,10 +85,11 @@ type UpdateInput struct {
 }
 
 type LinkInput struct {
-	Label    string `json:"label"`
-	URL      string `json:"url"`
-	Kind     string `json:"kind"`
-	IsActive bool   `json:"is_active"`
+	Label        string `json:"label"`
+	URL          string `json:"url"`
+	Kind         string `json:"kind"`
+	ThumbnailURL string `json:"thumbnail_url"`
+	IsActive     bool   `json:"is_active"`
 }
 
 type Store interface {
@@ -99,6 +118,9 @@ func NewMemoryStore(items []Profile) *MemoryStore {
 	for _, item := range items {
 		item.Handle = NormalizeHandle(item.Handle)
 		item.Theme = NormalizeTheme(item.Theme)
+		for index := range item.Links {
+			item.Links[index].Kind = NormalizeLinkKind(item.Links[index].Kind)
+		}
 		store.byHandle[item.Handle] = cloneProfile(item)
 	}
 	return store
@@ -117,7 +139,7 @@ func SeedProfiles() []Profile {
 			Bio:         "Building things on the internet.",
 			Theme:       DefaultTheme,
 			Links: []Link{
-				{ID: "lnk_01_github", Label: "GitHub", URL: "https://github.com/chrisbirster", Kind: "social", Position: 0, IsActive: true},
+				{ID: "lnk_01_github", Label: "GitHub", URL: "https://github.com/chrisbirster", Kind: "github", Position: 0, IsActive: true},
 				{ID: "lnk_02_vutame", Label: "Vutame", URL: "https://vutame.com", Kind: "website", Position: 1, IsActive: true},
 			},
 		},
@@ -136,12 +158,28 @@ func NormalizeTheme(theme string) string {
 	return theme
 }
 
+func NormalizeLinkKind(kind string) string {
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	if kind == "" {
+		return DefaultLinkKind
+	}
+	return kind
+}
+
 func ValidateTheme(theme string) (string, error) {
 	theme = NormalizeTheme(theme)
 	if _, ok := supportedThemes[theme]; !ok {
 		return "", fmt.Errorf("%w: unsupported theme %q", ErrInvalidProfile, theme)
 	}
 	return theme, nil
+}
+
+func ValidateLinkKind(kind string) (string, error) {
+	kind = NormalizeLinkKind(kind)
+	if _, ok := supportedLinkKinds[kind]; !ok {
+		return "", fmt.Errorf("%w: unsupported link kind %q", ErrInvalidLink, kind)
+	}
+	return kind, nil
 }
 
 func ValidateHandle(handle string) error {
@@ -176,11 +214,8 @@ func ValidateUpdateInput(input UpdateInput) (UpdateInput, error) {
 	if len(input.Bio) > 320 {
 		return UpdateInput{}, fmt.Errorf("%w: bio must be 320 characters or fewer", ErrInvalidProfile)
 	}
-	if input.AvatarURL != "" {
-		parsed, err := url.ParseRequestURI(input.AvatarURL)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-			return UpdateInput{}, fmt.Errorf("%w: avatar URL must be an absolute http(s) URL", ErrInvalidProfile)
-		}
+	if err := validateOptionalHTTPURL(input.AvatarURL, "avatar URL", ErrInvalidProfile); err != nil {
+		return UpdateInput{}, err
 	}
 	theme, err := ValidateTheme(input.Theme)
 	if err != nil {
@@ -193,29 +228,46 @@ func ValidateUpdateInput(input UpdateInput) (UpdateInput, error) {
 func ValidateLinkInput(input LinkInput) (LinkInput, error) {
 	input.Label = strings.TrimSpace(input.Label)
 	input.URL = strings.TrimSpace(input.URL)
-	input.Kind = strings.ToLower(strings.TrimSpace(input.Kind))
-	if input.Kind == "" {
-		input.Kind = "website"
-	}
+	input.ThumbnailURL = strings.TrimSpace(input.ThumbnailURL)
 	if input.Label == "" || len(input.Label) > 100 {
 		return LinkInput{}, fmt.Errorf("%w: label must be 1-100 characters", ErrInvalidLink)
 	}
 	if len(input.URL) > 2048 {
 		return LinkInput{}, fmt.Errorf("%w: URL is too long", ErrInvalidLink)
 	}
-	parsed, err := url.ParseRequestURI(input.URL)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return LinkInput{}, fmt.Errorf("%w: URL must be an absolute http(s) URL", ErrInvalidLink)
+	if err := validateRequiredHTTPURL(input.URL, "URL", ErrInvalidLink); err != nil {
+		return LinkInput{}, err
 	}
-	if len(input.Kind) > 32 {
-		return LinkInput{}, fmt.Errorf("%w: kind is too long", ErrInvalidLink)
+	kind, err := ValidateLinkKind(input.Kind)
+	if err != nil {
+		return LinkInput{}, err
 	}
-	for _, char := range input.Kind {
-		if !(char >= 'a' && char <= 'z' || char >= '0' && char <= '9' || char == '-' || char == '_') {
-			return LinkInput{}, fmt.Errorf("%w: kind contains unsupported characters", ErrInvalidLink)
-		}
+	input.Kind = kind
+	if len(input.ThumbnailURL) > 2048 {
+		return LinkInput{}, fmt.Errorf("%w: thumbnail URL is too long", ErrInvalidLink)
+	}
+	if err := validateOptionalHTTPURL(input.ThumbnailURL, "thumbnail URL", ErrInvalidLink); err != nil {
+		return LinkInput{}, err
 	}
 	return input, nil
+}
+
+func validateRequiredHTTPURL(value, field string, sentinel error) error {
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("%w: %s must be an absolute http(s) URL", sentinel, field)
+	}
+	return validateOptionalHTTPURL(value, field, sentinel)
+}
+
+func validateOptionalHTTPURL(value, field string, sentinel error) error {
+	if value == "" {
+		return nil
+	}
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("%w: %s must be an absolute http(s) URL", sentinel, field)
+	}
+	return nil
 }
 
 func (s *MemoryStore) Get(handle string) (Profile, error) {
@@ -259,6 +311,7 @@ func publicProfile(item Profile) Profile {
 	links := copy.Links[:0]
 	for _, link := range copy.Links {
 		if link.IsActive {
+			link.Kind = NormalizeLinkKind(link.Kind)
 			links = append(links, link)
 		}
 	}
