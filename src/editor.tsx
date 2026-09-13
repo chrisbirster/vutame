@@ -16,6 +16,7 @@ import {
   type Profile,
   type ProfileUpdate,
 } from "./api";
+import { LINK_KINDS, normalizeLinkKind } from "./link-kinds";
 import { ProfileEditorPanel } from "./profile-editor-panel";
 import { editorStyles as styles } from "./editor.stylex";
 
@@ -94,7 +95,8 @@ export function EditorPage() {
       await createOwnedLink({
         label: field(data, "label"),
         url: field(data, "url"),
-        kind: field(data, "kind") || "website",
+        kind: normalizeLinkKind(field(data, "kind")),
+        thumbnail_url: field(data, "thumbnail_url"),
         is_active: true,
       });
       form.reset();
@@ -117,7 +119,8 @@ export function EditorPage() {
       await updateOwnedLink(link.id, {
         label: field(data, "label"),
         url: field(data, "url"),
-        kind: field(data, "kind") || "website",
+        kind: normalizeLinkKind(field(data, "kind")),
+        thumbnail_url: field(data, "thumbnail_url"),
         is_active: link.is_active,
       });
       await refreshProfile();
@@ -138,6 +141,7 @@ export function EditorPage() {
         label: link.label,
         url: link.url,
         kind: link.kind,
+        thumbnail_url: link.thumbnail_url ?? "",
         is_active: !link.is_active,
       });
       await refreshProfile();
@@ -240,7 +244,7 @@ export function EditorPage() {
 
                     <form {...sx(styles.panel)} onSubmit={addLink}>
                       <h2 {...sx(styles.sectionTitle)}>Add link</h2>
-                      <p {...sx(styles.sectionCopy)}>New links are public by default and are added to the bottom of your stack.</p>
+                      <p {...sx(styles.sectionCopy)}>Choose a typed link. Add an optional thumbnail for a richer project or content card.</p>
                       <div {...sx(styles.grid)}>
                         <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>LABEL</span>
@@ -248,19 +252,25 @@ export function EditorPage() {
                         </label>
                         <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>KIND</span>
-                          <input {...sx(styles.input)} name="kind" value="website" maxlength="32" />
+                          <select {...sx(styles.input)} name="kind">
+                            <For each={LINK_KINDS}>{(kind) => <option value={kind.id}>{kind.label}</option>}</For>
+                          </select>
                         </label>
                       </div>
                       <label {...sx(styles.field)}>
                         <span {...sx(styles.label)}>URL</span>
                         <input {...sx(styles.input)} name="url" type="url" required placeholder="https://example.com" />
                       </label>
+                      <label {...sx(styles.field)}>
+                        <span {...sx(styles.label)}>THUMBNAIL URL <span {...sx(styles.optional)}>OPTIONAL</span></span>
+                        <input {...sx(styles.input)} name="thumbnail_url" type="url" placeholder="https://example.com/card.jpg" />
+                      </label>
                       <button {...sx(styles.button)} type="submit" disabled={busy()}>Add link</button>
                     </form>
 
                     <div {...sx(styles.panel)}>
                       <h2 {...sx(styles.sectionTitle)}>Links</h2>
-                      <p {...sx(styles.sectionCopy)}>Reorder, hide, edit, or remove links. Hidden links remain in your dashboard but disappear from the public profile.</p>
+                      <p {...sx(styles.sectionCopy)}>Reorder, hide, edit, or remove links. Typed links render a platform badge when no thumbnail is set.</p>
                       <Show when={item().links.length > 0} fallback={<p {...sx(styles.copy)}>No links yet. Add your first one above.</p>}>
                         <For each={item().links}>
                           {(link, index) => (
@@ -276,12 +286,18 @@ export function EditorPage() {
                                 </label>
                                 <label {...sx(styles.field)}>
                                   <span {...sx(styles.label)}>KIND</span>
-                                  <input {...sx(styles.input)} name="kind" value={link.kind} maxlength="32" />
+                                  <select {...sx(styles.input)} name="kind" value={link.kind}>
+                                    <For each={LINK_KINDS}>{(kind) => <option value={kind.id}>{kind.label}</option>}</For>
+                                  </select>
                                 </label>
                               </div>
                               <label {...sx(styles.field)}>
                                 <span {...sx(styles.label)}>URL</span>
                                 <input {...sx(styles.input)} name="url" type="url" value={link.url} required />
+                              </label>
+                              <label {...sx(styles.field)}>
+                                <span {...sx(styles.label)}>THUMBNAIL URL <span {...sx(styles.optional)}>OPTIONAL</span></span>
+                                <input {...sx(styles.input)} name="thumbnail_url" type="url" value={link.thumbnail_url ?? ""} placeholder="https://example.com/card.jpg" />
                               </label>
                               <div {...sx(styles.actions)}>
                                 <button {...sx(styles.button)} type="submit" disabled={busy()}>Save</button>
