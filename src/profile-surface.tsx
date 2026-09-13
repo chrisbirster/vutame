@@ -37,14 +37,17 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
     <article {...sx(styles.frame, props.preview && styles.previewFrame, theme().surface)}>
       <Show
         when={props.profile.avatar_url}
-        fallback={<div {...sx(styles.avatar, props.preview && styles.previewAvatar, theme().avatar)}>{initial()}</div>}
+        fallback={<div {...sx(styles.avatar, props.preview && styles.previewAvatar, theme().avatar)} aria-hidden="true">{initial()}</div>}
       >
         {(avatarURL) => (
           <img
             {...sx(styles.avatar, props.preview && styles.previewAvatar, theme().avatar)}
             src={avatarURL()}
             alt=""
+            width="94"
+            height="94"
             loading={props.preview ? "eager" : "lazy"}
+            decoding="async"
           />
         )}
       </Show>
@@ -68,18 +71,22 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
                   target={props.preview ? undefined : "_blank"}
                   rel={props.preview ? undefined : "noreferrer"}
                   aria-disabled={props.preview ? "true" : undefined}
+                  aria-label={`${link.label} — ${meta().label}${link.featured ? ", featured" : ""}`}
                 >
                   <span {...sx(styles.linkLead)}>
                     <Show
                       when={link.thumbnail_url}
-                      fallback={<span {...sx(styles.kindBadge, props.preview && styles.previewKindBadge)}>{meta().badge}</span>}
+                      fallback={<span {...sx(styles.kindBadge, props.preview && styles.previewKindBadge)} aria-hidden="true">{meta().badge}</span>}
                     >
                       {(thumbnailURL) => (
                         <img
                           {...sx(styles.thumbnail, props.preview && styles.previewThumbnail)}
                           src={thumbnailURL()}
                           alt=""
+                          width="48"
+                          height="48"
                           loading={props.preview ? "eager" : "lazy"}
+                          decoding="async"
                         />
                       )}
                     </Show>
