@@ -1,6 +1,6 @@
 # M2 — Linktree parity and profile design
 
-Status: **in progress**
+Status: **in progress — final CI/merge pending**
 
 Goal: make Vutame polished and expressive enough to replace a conventional link-in-bio product while keeping the public profile fast, accessible, and consistent with the creator editor.
 
@@ -50,21 +50,24 @@ Goal: make Vutame polished and expressive enough to replace a conventional link-
 - [x] Add local datetime editor controls that convert to UTC instants before mutation requests.
 - [x] Reuse schedule/featured behavior in the shared live-preview/public profile renderer.
 - [x] Add fixed-clock domain, SQLite, authenticated HTTP, and Turso-engine coverage for feature/schedule behavior.
-- [ ] CI green on the exact featured/scheduled feature head.
-- [ ] Merge the featured/scheduled feature into `dev`.
-- [ ] Add safe generic OpenGraph preview metadata.
-- [ ] Add explicit rich integrations for high-value providers where embedding is safe and useful.
-- [ ] Ensure rich cards degrade to ordinary links when metadata fetches fail.
+- [x] CI green on the exact featured/scheduled feature head.
+- [x] Merge the featured/scheduled feature into `dev`.
+- [x] Add safe generic OpenGraph preview metadata behind an authenticated HTTPS-only fetcher with redirect/body/time limits and private-network protections.
+- [x] Add provider-aware enrichment for GitHub, YouTube, Instagram, TikTok, X, Bluesky, LinkedIn, and Spotify while keeping Vutame cards as ordinary links instead of loading third-party iframe code.
+- [x] Ensure preview-enrichment failures degrade to ordinary typed links and never block import or rendering.
 
 ## Slice 4 — sharing, SEO, accessibility, and import
 
-- [ ] Generate downloadable/shareable profile QR codes.
-- [ ] Generate profile-specific document title, description, canonical URL, and OpenGraph metadata.
-- [ ] Add keyboard, contrast, reduced-motion, and screen-reader passes across every theme.
-- [ ] Add mobile performance budgets and image-loading rules.
-- [ ] Add a simple importer for conventional link-in-bio link lists where technically and legally practical.
-- [ ] Verify profiles remain usable without JavaScript after server/meta improvements planned for this slice.
+- [x] Generate downloadable/shareable profile QR codes from the canonical `vuta.me/@handle` URL.
+- [x] Generate profile-specific document title, description, canonical URL, OpenGraph metadata, and Twitter-card metadata on the server.
+- [x] Add keyboard focus defaults, reduced-motion handling, semantic/label improvements, and decorative-image treatment across the shared profile themes.
+- [x] Add image dimensions, lazy loading/async decoding, and a CI-enforced gzip budget for shipped JavaScript/CSS.
+- [x] Add a creator import tool for CSV, tab/pipe-separated, and copied link lists with a 50-link batch cap and review step.
+- [x] Render existing public profiles as escaped semantic `<noscript>` HTML so names, bios, and public links remain usable without JavaScript.
+- [x] Add unit/HTTP coverage for profile metadata/no-JS rendering, QR generation, and safe preview metadata.
+- [ ] CI green on the exact M2 finish feature head.
+- [ ] Merge the M2 finish feature into `dev`.
 
 ## M2 exit criteria
 
-A creator can build a polished Vuta with a distinct visual identity, avatar/media, recognizable social links, rich/featured/scheduled content, sharing/SEO support, and strong mobile accessibility. The creator preview must use the same presentation primitives as the public profile so saved output cannot materially differ from what was previewed.
+A creator can build a polished Vuta with a distinct visual identity, managed avatar/media, recognizable typed social links, thumbnails, featured/scheduled content, safe metadata enrichment, QR sharing, profile-specific SEO, import tools, and strong mobile accessibility/performance defaults. The creator preview uses the same presentation primitives as the public profile so saved output cannot materially differ from what was previewed.

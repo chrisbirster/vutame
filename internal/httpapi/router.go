@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/chrisbirster/vutame/internal/auth"
+	"github.com/chrisbirster/vutame/internal/linkpreview"
 	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
 )
@@ -17,6 +18,7 @@ type Options struct {
 	Auth            *auth.Service
 	Editor          profile.Editor
 	Media           *media.Service
+	Previewer       linkpreview.Fetcher
 	CookieSecure    bool
 }
 
@@ -79,7 +81,9 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	registerAuthRoutes(mux, options)
 	registerEditorRoutes(mux, options)
 	registerMediaRoutes(mux, options)
-	mux.Handle("/", web)
+	registerLinkPreviewRoutes(mux, options)
+	registerProfileUtilityRoutes(mux, profiles, options)
+	mux.Handle("/", profileHTMLHandler(web, profiles, options))
 	return mux
 }
 
@@ -91,6 +95,9 @@ func normalizeOptions(options Options) Options {
 	}
 	if options.ProfileOrigin == "" {
 		options.ProfileOrigin = "https://vuta.me"
+	}
+	if options.Previewer == nil {
+		options.Previewer = linkpreview.NewService()
 	}
 	return options
 }

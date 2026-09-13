@@ -14,6 +14,7 @@ function Layout(props: ParentProps) {
         <nav {...stylex.attrs(styles.nav)} aria-label="Primary navigation">
           <a {...stylex.attrs(styles.navLink)} href="/discover">Discover</a>
           <a {...stylex.attrs(styles.navLink)} href="/create">Dashboard</a>
+          <a {...stylex.attrs(styles.navLink)} href="/settings/import">Share & import</a>
           <a {...stylex.attrs(styles.navLink)} href="/settings">Settings</a>
           <a {...stylex.attrs(styles.navLink)} href="/signin">Sign in</a>
         </nav>
