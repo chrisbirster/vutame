@@ -73,6 +73,10 @@ export const profileSurfaceStyles = stylex.create({
     fontWeight: 800,
     textAlign: "left",
   },
+  featuredLink: {
+    transform: "scale(1.015)",
+    boxShadow: "0 12px 34px rgba(0,0,0,.18)",
+  },
   previewLink: { minHeight: "58px", borderRadius: "16px", padding: "7px 12px 7px 8px", fontSize: "13px" },
   linkLead: {
     minWidth: 0,
@@ -90,6 +94,12 @@ export const profileSurfaceStyles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+  linkMeta: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "7px",
+  },
   linkKind: {
     fontSize: "10px",
     lineHeight: 1.2,
@@ -97,6 +107,17 @@ export const profileSurfaceStyles = stylex.create({
     letterSpacing: ".08em",
     textTransform: "uppercase",
     opacity: .82,
+  },
+  featuredBadge: {
+    padding: "2px 5px",
+    borderRadius: "999px",
+    background: "rgba(169,145,255,.15)",
+    border: "1px solid rgba(169,145,255,.22)",
+    color: "#c7b8ff",
+    fontSize: "8px",
+    lineHeight: 1.2,
+    fontWeight: 900,
+    letterSpacing: ".06em",
   },
   kindBadge: {
     flexShrink: 0,

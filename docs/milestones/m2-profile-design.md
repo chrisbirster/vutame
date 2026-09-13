@@ -38,14 +38,20 @@ Goal: make Vutame polished and expressive enough to replace a conventional link-
 - [x] CI green on the exact rich-links feature head.
 - [x] Merge the rich-links feature into `dev`.
 - [x] Add filesystem/service, authenticated HTTP, and Turso-engine coverage for managed avatars.
-- [ ] CI green on the exact media-upload feature head.
-- [ ] Merge the media-upload feature into `dev`.
+- [x] CI green on the exact media-upload feature head.
+- [x] Merge the media-upload feature into `dev`.
 
 ## Slice 3 — richer link presentation
 
 - [x] Add optional link thumbnails and render them through the shared public/preview surface.
-- [ ] Add featured/pinned links.
-- [ ] Add scheduled links and temporary visibility windows.
+- [x] Add featured/pinned links that sort ahead of ordinary links while preserving manual order within each group.
+- [x] Add scheduled links with optional RFC3339 start/end visibility windows.
+- [x] Keep scheduled/future/expired links in the owner dashboard while filtering them from public/discovery responses using server time.
+- [x] Add local datetime editor controls that convert to UTC instants before mutation requests.
+- [x] Reuse schedule/featured behavior in the shared live-preview/public profile renderer.
+- [x] Add fixed-clock domain, SQLite, authenticated HTTP, and Turso-engine coverage for feature/schedule behavior.
+- [ ] CI green on the exact featured/scheduled feature head.
+- [ ] Merge the featured/scheduled feature into `dev`.
 - [ ] Add safe generic OpenGraph preview metadata.
 - [ ] Add explicit rich integrations for high-value providers where embedding is safe and useful.
 - [ ] Ensure rich cards degrade to ordinary links when metadata fetches fail.

@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
-import type { Profile } from "./api";
+import type { Link, Profile } from "./api";
 import { linkKindMeta } from "./link-kinds";
 import { profileSurfaceStyles as styles } from "./profile-surface.stylex";
 
@@ -23,7 +23,14 @@ export function normalizeProfileTheme(theme: string | undefined): ProfileTheme {
 
 export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
   const theme = () => themeStyles(normalizeProfileTheme(props.profile.theme));
-  const links = () => props.profile.links.filter((link) => link.is_active);
+  const links = () => props.profile.links
+    .filter((link) => link.is_active && linkVisibleNow(link))
+    .slice()
+    .sort((left, right) => {
+      if (left.featured !== right.featured) return left.featured ? -1 : 1;
+      if (left.position !== right.position) return left.position - right.position;
+      return left.id.localeCompare(right.id);
+    });
   const initial = () => (props.profile.display_name || props.profile.handle || "V").trim().slice(0, 1).toUpperCase();
 
   return (
@@ -56,7 +63,7 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
               const meta = () => linkKindMeta(link.kind);
               return (
                 <a
-                  {...sx(styles.link, props.preview && styles.previewLink, theme().link)}
+                  {...sx(styles.link, link.featured && styles.featuredLink, props.preview && styles.previewLink, theme().link)}
                   href={props.preview ? undefined : link.url}
                   target={props.preview ? undefined : "_blank"}
                   rel={props.preview ? undefined : "noreferrer"}
@@ -78,7 +85,10 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
                     </Show>
                     <span {...sx(styles.linkCopy)}>
                       <span {...sx(styles.linkLabel)}>{link.label}</span>
-                      <span {...sx(styles.linkKind, theme().bio)}>{meta().label}</span>
+                      <span {...sx(styles.linkMeta)}>
+                        <span {...sx(styles.linkKind, theme().bio)}>{meta().label}</span>
+                        <Show when={link.featured}><span {...sx(styles.featuredBadge)}>FEATURED</span></Show>
+                      </span>
                     </span>
                   </span>
                   <span {...sx(styles.arrow)} aria-hidden="true">↗</span>
@@ -93,6 +103,19 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
       </a>
     </article>
   );
+}
+
+function linkVisibleNow(link: Link) {
+  const now = Date.now();
+  if (link.visible_from) {
+    const from = new Date(link.visible_from).getTime();
+    if (!Number.isFinite(from) || now < from) return false;
+  }
+  if (link.visible_until) {
+    const until = new Date(link.visible_until).getTime();
+    if (!Number.isFinite(until) || now >= until) return false;
+  }
+  return true;
 }
 
 function themeStyles(theme: ProfileTheme) {
