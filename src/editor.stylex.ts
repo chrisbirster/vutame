@@ -60,6 +60,11 @@ export const editorStyles = stylex.create({
     fontWeight: 800,
     letterSpacing: ".04em",
   },
+  optional: {
+    color: "#666d81",
+    fontSize: "10px",
+    fontWeight: 700,
+  },
   input: {
     width: "100%",
     minHeight: "46px",
