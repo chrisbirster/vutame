@@ -12,6 +12,7 @@ CREATE TABLE profiles (
   display_name TEXT NOT NULL DEFAULT '',
   bio TEXT NOT NULL DEFAULT '',
   avatar_url TEXT NOT NULL DEFAULT '',
+  theme TEXT NOT NULL DEFAULT 'midnight',
   verified INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0, 1)),
   atproto_did TEXT UNIQUE,
   created_at TEXT NOT NULL,
