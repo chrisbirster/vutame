@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chrisbirster/vutame/internal/activity"
+	"github.com/chrisbirster/vutame/internal/analytics"
 	"github.com/chrisbirster/vutame/internal/auth"
 	datastore "github.com/chrisbirster/vutame/internal/database"
 	"github.com/chrisbirster/vutame/internal/httpapi"
@@ -56,6 +57,11 @@ func main() {
 		slog.Error("open media service", "error", err)
 		os.Exit(1)
 	}
+	analyticsService, err := openAnalyticsService(databaseRuntime)
+	if err != nil {
+		slog.Error("open analytics service", "error", err)
+		os.Exit(1)
+	}
 	safetyStore, err := openSafetyStore(databaseRuntime)
 	if err != nil {
 		slog.Error("open safety store", "error", err)
@@ -83,6 +89,7 @@ func main() {
 			Media:           mediaService,
 			Social:          socialStore,
 			Activity:        activityStore,
+			Analytics:       analyticsService,
 			Safety:          safetyStore,
 			CookieSecure:    cookieSecure,
 		}),
@@ -110,6 +117,7 @@ func main() {
 		"media_enabled", mediaService != nil,
 		"social_enabled", socialStore != nil,
 		"activity_enabled", activityStore != nil,
+		"analytics_enabled", analyticsService != nil,
 		"safety_enabled", safetyStore != nil,
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -174,6 +182,13 @@ func openActivityStore(runtime *datastore.Runtime) (activity.Store, error) {
 		return nil, err
 	}
 	return activity.NewGuardedStore(base, runtime.DB)
+}
+
+func openAnalyticsService(runtime *datastore.Runtime) (*analytics.Service, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	return analytics.NewService(runtime.DB)
 }
 
 func openSafetyStore(runtime *datastore.Runtime) (safety.Store, error) {
