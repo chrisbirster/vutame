@@ -67,7 +67,7 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
               return (
                 <a
                   {...sx(styles.link, link.featured && styles.featuredLink, props.preview && styles.previewLink, theme().link)}
-                  href={props.preview ? undefined : link.url}
+                  href={props.preview ? undefined : `/out/${encodeURIComponent(link.id)}`}
                   target={props.preview ? undefined : "_blank"}
                   rel={props.preview ? undefined : "noreferrer"}
                   aria-disabled={props.preview ? "true" : undefined}
