@@ -1,6 +1,6 @@
 # M3 — Discovery and social graph
 
-Status: **in progress**
+Status: **implementation complete; awaiting exact-head CI and merge**
 
 Goal: turn Vutame from isolated creator profiles into a browsable creator network with explicit follows, searchable identity metadata, useful activity feeds, and trustworthy discovery primitives.
 
@@ -30,16 +30,34 @@ Goal: turn Vutame from isolated creator profiles into a browsable creator networ
 - [x] Activity-feed exact-head CI and Docker gate green; merged into `dev`.
 - [x] Add cursor pagination to creator search/discovery results with duplicate-safe load-more UI.
 - [x] Add SQLite, HTTP, and Turso coverage for discovery cursors.
-- [ ] Discovery-pagination exact-head CI green and merge into `dev`.
+- [x] Discovery-pagination exact-head CI and Docker gate green; merged into `dev`.
 
 ## Slice 3 — safety and rollout controls
 
-- [ ] Add block and mute relationships before broad social rollout.
-- [ ] Make blocked users invisible to each other in follow/discovery/feed paths.
-- [ ] Add report primitives and moderation/admin state.
-- [ ] Add rate limits and anti-spam protections for follow/search mutations.
-- [ ] Add privacy controls needed for broader discovery.
+- [x] Add durable block and mute relationships before broad social rollout.
+- [x] Make blocked users invisible to each other in follow, discovery, social-summary, and feed paths.
+- [x] Make muting remove a creator from viewer-specific feeds without changing the follow relationship.
+- [x] Remove follows in both directions when a block is created.
+- [x] Add creator privacy controls for discovery, public activity, and inbound follows.
+- [x] Remove existing inbound follows when a creator disables follows.
+- [x] Add bounded report primitives with explicit reasons and persisted report state.
+- [x] Add durable moderation profile state (`active`, `restricted`, `suspended`) without exposing an insecure admin mutation surface.
+- [x] Add rate limits for public discovery search and authenticated social/report mutations.
+- [x] Add a creator-facing `/settings/safety` UI for privacy, block, mute, and report controls.
+- [x] Add SQLite coverage for safety persistence and policy semantics.
+- [x] Add Turso integration coverage crossing safety, social, and activity behavior.
+- [x] Add authenticated HTTP lifecycle and deterministic `429` coverage.
+- [ ] Exact-head CI and Docker gate green on the safety feature head.
+- [ ] Merge safety feature into `dev` and close M3.
+
+### Safety implementation notes
+
+Blocking is the strongest relationship boundary: it removes existing follows in both directions and prevents future follow/social visibility between the two accounts. Muting is intentionally weaker and affects viewer-specific feeds only. Privacy controls are creator-owned and can independently disable discovery, public activity, or inbound follows.
+
+The current abuse limiter is process-local and appropriate for the current deployment shape. A horizontally scaled deployment should move shared rate-limit state to infrastructure designed for distributed counters.
+
+Moderation state is durable and enforced by social/activity policy, but M3 deliberately does not expose an ad-hoc admin HTTP endpoint. A future moderation console must use a real staff/admin authorization model.
 
 ## M3 exit criteria
 
-A signed-in user can find creators, follow/unfollow them, browse follower/following relationships, and consume a useful discovery/following experience. Safety primitives must exist before the social graph is treated as broadly public infrastructure.
+A signed-in user can find creators, follow/unfollow them, browse follower/following relationships, consume discovery/following feeds, block or mute creators, control discovery/activity/follow privacy, and report abuse. Block/privacy/moderation policy is enforced in the read paths rather than existing only as UI state. The remaining exit gate is exact-head CI plus merge into `dev`.
