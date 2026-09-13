@@ -94,9 +94,6 @@ export const editorStyles = stylex.create({
     fontSize: "13px",
     lineHeight: 1.35,
     cursor: "pointer",
-    "& input": { marginTop: "2px" },
-    "& span": { display: "grid", gap: "3px" },
-    "& small": { color: "#777f93", fontSize: "11px", lineHeight: 1.4 },
   },
   button: {
     minHeight: "42px",
