@@ -2,8 +2,10 @@ package social
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -13,13 +15,14 @@ var (
 	ErrSelfFollow      = errors.New("cannot follow yourself")
 	ErrProfileRequired = errors.New("profile required")
 	ErrInvalidMetadata = errors.New("invalid discovery metadata")
+	ErrInvalidCursor   = errors.New("invalid discovery cursor")
 )
 
 const (
-	MaxCategoryLength = 40
-	MaxInterestLength = 32
-	MaxInterests      = 8
-	MaxSearchLength   = 80
+	MaxCategoryLength  = 40
+	MaxInterestLength  = 32
+	MaxInterests       = 8
+	MaxSearchLength    = 80
 	DefaultSearchLimit = 24
 	MaxSearchLimit     = 50
 )
@@ -38,6 +41,11 @@ type Creator struct {
 	ViewerFollows  bool     `json:"viewer_follows"`
 }
 
+type CreatorPage struct {
+	Creators   []Creator `json:"creators"`
+	NextCursor string    `json:"next_cursor,omitempty"`
+}
+
 type MetadataInput struct {
 	Category  string   `json:"category"`
 	Interests []string `json:"interests"`
@@ -47,6 +55,7 @@ type SearchInput struct {
 	Query    string
 	Category string
 	Interest string
+	Cursor   string
 	Limit    int
 }
 
@@ -57,6 +66,7 @@ type Store interface {
 	Followers(context.Context, string, string) ([]Creator, error)
 	Following(context.Context, string, string) ([]Creator, error)
 	Search(context.Context, SearchInput, string) ([]Creator, error)
+	SearchPage(context.Context, SearchInput, string) (CreatorPage, error)
 	UpdateMetadata(context.Context, string, MetadataInput) (Creator, error)
 }
 
@@ -95,6 +105,7 @@ func NormalizeSearch(input SearchInput) (SearchInput, error) {
 	input.Query = strings.TrimSpace(input.Query)
 	input.Category = strings.TrimSpace(input.Category)
 	input.Interest = strings.ToLower(strings.TrimSpace(input.Interest))
+	input.Cursor = strings.TrimSpace(input.Cursor)
 	if utf8.RuneCountInString(input.Query) > MaxSearchLength {
 		return SearchInput{}, fmt.Errorf("%w: search query must be %d characters or fewer", ErrInvalidMetadata, MaxSearchLength)
 	}
@@ -111,4 +122,27 @@ func NormalizeSearch(input SearchInput) (SearchInput, error) {
 		input.Limit = MaxSearchLimit
 	}
 	return input, nil
+}
+
+func EncodeSearchCursor(offset int) string {
+	if offset <= 0 {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString([]byte(strconv.Itoa(offset)))
+}
+
+func DecodeSearchCursor(cursor string) (int, error) {
+	cursor = strings.TrimSpace(cursor)
+	if cursor == "" {
+		return 0, nil
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return 0, ErrInvalidCursor
+	}
+	offset, err := strconv.Atoi(string(decoded))
+	if err != nil || offset < 0 || offset > 100000 {
+		return 0, ErrInvalidCursor
+	}
+	return offset, nil
 }
