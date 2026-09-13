@@ -16,15 +16,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
-      - name: Resolve Go module graph
-        run: |
-          go mod tidy
-          echo '--- BEGIN GO.MOD ---'
-          cat go.mod
-          echo '--- END GO.MOD ---'
-          echo '--- BEGIN GO.SUM ---'
-          cat go.sum
-          echo '--- END GO.SUM ---'
       - run: npm install
       - run: npm run verify
       - run: docker build -t vutame-ci .
