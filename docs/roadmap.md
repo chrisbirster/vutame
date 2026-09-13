@@ -67,7 +67,7 @@ Exit criteria: **satisfied.** A creator can reproduce a polished existing link-i
 
 ## M3 — Discovery and social graph
 
-Status: **implementation complete; safety exact-head CI/merge pending**
+Status: **complete**
 
 Goal: turn isolated link pages into a network.
 
@@ -86,11 +86,11 @@ Tasks:
 - Anti-spam/rate-limit protections.
 - SQLite, HTTP, and Turso coverage across social, feed, and safety policy.
 
-Exit criteria: users have a reason to browse `vutame.com` even when they did not arrive through somebody's `vuta.me` link, and the resulting network has block/mute/privacy/report/moderation primitives enforced in its read and mutation paths. Exact-head CI and merge are the remaining M3 gate.
+Exit criteria: **satisfied.** Users have a reason to browse `vutame.com` even when they did not arrive through somebody's `vuta.me` link, and the resulting network has block/mute/privacy/report/moderation primitives enforced in its read and mutation paths.
 
 ## M4 — Analytics, growth, and creator tools
 
-Status: **next after M3 closes**
+Status: **current**
 
 Goal: give creators measurable value and growth tooling.
 
