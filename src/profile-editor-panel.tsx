@@ -80,7 +80,7 @@ export function ProfileEditorPanel(props: {
                 {...sx(styles.theme, theme() === option.id && styles.themeSelected)}
                 type="button"
                 role="radio"
-                aria-checked={theme() === option.id}
+                aria-checked={theme() === option.id ? "true" : "false"}
                 onClick={() => setTheme(option.id)}
               >
                 <span {...sx(styles.themeName)}>{option.name}</span>
