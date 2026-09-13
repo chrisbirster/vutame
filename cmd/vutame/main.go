@@ -17,6 +17,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/httpapi"
 	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
+	"github.com/chrisbirster/vutame/internal/social"
 	webapp "github.com/chrisbirster/vutame/internal/web"
 )
 
@@ -53,6 +54,11 @@ func main() {
 		slog.Error("open media service", "error", err)
 		os.Exit(1)
 	}
+	socialStore, err := openSocialStore(databaseRuntime)
+	if err != nil {
+		slog.Error("open social graph store", "error", err)
+		os.Exit(1)
+	}
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -62,6 +68,7 @@ func main() {
 			Auth:            authService,
 			Editor:          editor,
 			Media:           mediaService,
+			Social:          socialStore,
 			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -79,7 +86,15 @@ func main() {
 		}
 	}()
 
-	slog.Info("vutame listening", "addr", server.Addr, "database_backend", databaseRuntime.Backend, "auth_enabled", authService != nil, "editor_enabled", editor != nil, "media_enabled", mediaService != nil)
+	slog.Info(
+		"vutame listening",
+		"addr", server.Addr,
+		"database_backend", databaseRuntime.Backend,
+		"auth_enabled", authService != nil,
+		"editor_enabled", editor != nil,
+		"media_enabled", mediaService != nil,
+		"social_enabled", socialStore != nil,
+	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
@@ -120,6 +135,13 @@ func openProfileStore(runtime *datastore.Runtime) (profile.Store, profile.Editor
 		return nil, nil, err
 	}
 	return store, store, nil
+}
+
+func openSocialStore(runtime *datastore.Runtime) (social.Store, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	return social.NewSQLiteStore(runtime.DB)
 }
 
 func openAuthService(runtime *datastore.Runtime, cookieSecure bool) (*auth.Service, error) {

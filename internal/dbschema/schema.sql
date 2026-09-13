@@ -19,6 +19,31 @@ CREATE TABLE profiles (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE creator_metadata (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  category TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE creator_interests (
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  interest TEXT NOT NULL COLLATE NOCASE,
+  PRIMARY KEY (user_id, interest)
+);
+
+CREATE INDEX creator_interests_interest_idx ON creator_interests(interest, user_id);
+
+CREATE TABLE follows (
+  follower_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  following_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (follower_user_id, following_user_id),
+  CHECK (follower_user_id <> following_user_id)
+);
+
+CREATE INDEX follows_follower_created_idx ON follows(follower_user_id, created_at DESC, following_user_id);
+CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, follower_user_id);
+
 CREATE TABLE links (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
