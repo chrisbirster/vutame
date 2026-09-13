@@ -33,6 +33,21 @@ CREATE TABLE creator_interests (
 
 CREATE INDEX creator_interests_interest_idx ON creator_interests(interest, user_id);
 
+CREATE TABLE creator_privacy (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  discoverable INTEGER NOT NULL DEFAULT 1 CHECK (discoverable IN (0, 1)),
+  activity_visible INTEGER NOT NULL DEFAULT 1 CHECK (activity_visible IN (0, 1)),
+  allow_follows INTEGER NOT NULL DEFAULT 1 CHECK (allow_follows IN (0, 1)),
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE moderation_profiles (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  state TEXT NOT NULL DEFAULT 'active' CHECK (state IN ('active', 'restricted', 'suspended')),
+  note TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE follows (
   follower_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   following_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
@@ -43,6 +58,41 @@ CREATE TABLE follows (
 
 CREATE INDEX follows_follower_created_idx ON follows(follower_user_id, created_at DESC, following_user_id);
 CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, follower_user_id);
+
+CREATE TABLE blocks (
+  blocker_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  blocked_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (blocker_user_id, blocked_user_id),
+  CHECK (blocker_user_id <> blocked_user_id)
+);
+
+CREATE INDEX blocks_blocked_idx ON blocks(blocked_user_id, blocker_user_id);
+
+CREATE TABLE mutes (
+  muter_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  muted_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (muter_user_id, muted_user_id),
+  CHECK (muter_user_id <> muted_user_id)
+);
+
+CREATE INDEX mutes_muted_idx ON mutes(muted_user_id, muter_user_id);
+
+CREATE TABLE reports (
+  id TEXT PRIMARY KEY,
+  reporter_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  reported_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  reason TEXT NOT NULL CHECK (reason IN ('spam', 'harassment', 'impersonation', 'unsafe', 'other')),
+  detail TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewing', 'resolved', 'dismissed')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CHECK (reporter_user_id <> reported_user_id)
+);
+
+CREATE INDEX reports_status_created_idx ON reports(status, created_at DESC, id DESC);
+CREATE INDEX reports_reported_created_idx ON reports(reported_user_id, created_at DESC, id DESC);
 
 CREATE TABLE links (
   id TEXT PRIMARY KEY,
