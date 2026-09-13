@@ -50,6 +50,15 @@ export type MediaAsset = {
   size_bytes: number;
 };
 
+export type LinkPreviewMetadata = {
+  url: string;
+  title?: string;
+  description?: string;
+  image_url?: string;
+  site_name?: string;
+  provider: string;
+};
+
 export type AppMeta = {
   product: string;
   marketing_origin: string;
@@ -172,6 +181,10 @@ export async function deleteOwnedAvatar(): Promise<void> {
     credentials: "same-origin",
   });
   if (!response.ok) throw await apiError(response, "avatar delete failed");
+}
+
+export async function fetchLinkPreview(url: string): Promise<LinkPreviewMetadata> {
+  return mutationJSON<LinkPreviewMetadata>("POST", "/api/v1/me/link-preview", { url }, "preview metadata unavailable");
 }
 
 export async function createOwnedLink(input: LinkInput): Promise<Link> {
