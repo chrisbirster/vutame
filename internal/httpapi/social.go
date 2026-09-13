@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chrisbirster/vutame/internal/auth"
 	"github.com/chrisbirster/vutame/internal/profile"
@@ -13,6 +14,9 @@ import (
 
 func registerSocialRoutes(mux *http.ServeMux, profiles profile.Store, options Options) {
 	mux.HandleFunc("GET /api/v1/discovery", func(w http.ResponseWriter, r *http.Request) {
+		if !allowRate(w, options, "search:"+remoteRateIdentity(r), 120, time.Minute) {
+			return
+		}
 		viewerUserID := optionalViewerUserID(w, r, options)
 		if options.Social == nil {
 			items, err := profiles.Discover()
@@ -113,7 +117,7 @@ func registerSocialRoutes(mux *http.ServeMux, profiles profile.Store, options Op
 
 	mux.HandleFunc("PUT /api/v1/me/follows/{handle}", func(w http.ResponseWriter, r *http.Request) {
 		user, ok := requireAuthenticatedUser(w, r, options)
-		if !ok || !requireSocial(w, options) {
+		if !ok || !requireSocial(w, options) || !allowRate(w, options, "follow:"+user.ID, 60, time.Hour) {
 			return
 		}
 		err := options.Social.Follow(r.Context(), user.ID, r.PathValue("handle"))
@@ -124,6 +128,9 @@ func registerSocialRoutes(mux *http.ServeMux, profiles profile.Store, options Op
 			writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		case errors.Is(err, social.ErrProfileRequired):
 			writeJSON(w, http.StatusConflict, map[string]string{"error": "claim a Vuta before following creators"})
+		case errors.Is(err, social.ErrRelationshipBlocked), errors.Is(err, social.ErrFollowsDisabled):
+			// Keep block direction and privacy choices private.
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "follow unavailable"})
 		case err != nil:
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		default:
@@ -133,7 +140,7 @@ func registerSocialRoutes(mux *http.ServeMux, profiles profile.Store, options Op
 
 	mux.HandleFunc("DELETE /api/v1/me/follows/{handle}", func(w http.ResponseWriter, r *http.Request) {
 		user, ok := requireAuthenticatedUser(w, r, options)
-		if !ok || !requireSocial(w, options) {
+		if !ok || !requireSocial(w, options) || !allowRate(w, options, "follow:"+user.ID, 60, time.Hour) {
 			return
 		}
 		err := options.Social.Unfollow(r.Context(), user.ID, r.PathValue("handle"))

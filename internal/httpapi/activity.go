@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -8,6 +9,11 @@ import (
 
 	"github.com/chrisbirster/vutame/internal/activity"
 )
+
+type viewerActivityStore interface {
+	RecentForViewer(context.Context, string, string, int) (activity.Page, error)
+	TrendingForViewer(context.Context, string, int) ([]activity.Trend, error)
+}
 
 func registerActivityRoutes(mux *http.ServeMux, options Options) {
 	mux.HandleFunc("GET /api/v1/feed", func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +45,14 @@ func registerActivityRoutes(mux *http.ServeMux, options Options) {
 		if !ok {
 			return
 		}
-		page, err := options.Activity.Recent(r.Context(), r.URL.Query().Get("cursor"), limit)
+		viewerUserID := optionalViewerUserID(w, r, options)
+		var page activity.Page
+		var err error
+		if guarded, ok := options.Activity.(viewerActivityStore); ok {
+			page, err = guarded.RecentForViewer(r.Context(), viewerUserID, r.URL.Query().Get("cursor"), limit)
+		} else {
+			page, err = options.Activity.Recent(r.Context(), r.URL.Query().Get("cursor"), limit)
+		}
 		if errors.Is(err, activity.ErrInvalidCursor) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid cursor"})
 			return
@@ -59,7 +72,14 @@ func registerActivityRoutes(mux *http.ServeMux, options Options) {
 		if !ok {
 			return
 		}
-		items, err := options.Activity.Trending(r.Context(), limit)
+		viewerUserID := optionalViewerUserID(w, r, options)
+		var items []activity.Trend
+		var err error
+		if guarded, ok := options.Activity.(viewerActivityStore); ok {
+			items, err = guarded.TrendingForViewer(r.Context(), viewerUserID, limit)
+		} else {
+			items, err = options.Activity.Trending(r.Context(), limit)
+		}
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 			return

@@ -67,7 +67,7 @@ Exit criteria: **satisfied.** A creator can reproduce a polished existing link-i
 
 ## M3 — Discovery and social graph
 
-Status: **next**
+Status: **complete**
 
 Goal: turn isolated link pages into a network.
 
@@ -80,13 +80,17 @@ Tasks:
 - Discover/trending/recent creator surfaces.
 - Activity events for profile changes and newly featured links.
 - Optional following feed.
+- Cursor pagination for feeds and creator discovery.
 - Blocks/mutes and privacy controls before broad social rollout.
 - Moderation/admin primitives and report flow.
 - Anti-spam/rate-limit protections.
+- SQLite, HTTP, and Turso coverage across social, feed, and safety policy.
 
-Exit criteria: users have a reason to browse `vutame.com` even when they did not arrive through somebody's `vuta.me` link.
+Exit criteria: **satisfied.** Users have a reason to browse `vutame.com` even when they did not arrive through somebody's `vuta.me` link, and the resulting network has block/mute/privacy/report/moderation primitives enforced in its read and mutation paths.
 
 ## M4 — Analytics, growth, and creator tools
+
+Status: **current**
 
 Goal: give creators measurable value and growth tooling.
 
