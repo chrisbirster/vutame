@@ -5,13 +5,20 @@ import {
   createOwnedLink,
   fetchAppMeta,
   fetchAuthSession,
+  fetchLinkPreview,
   fetchOwnedProfile,
   type AppMeta,
   type AuthSession,
+  type LinkPreviewMetadata,
   type Profile,
 } from "./api";
 import { LINK_KINDS, normalizeLinkKind } from "./link-kinds";
-import { parseLinkImport, type ImportedLink } from "./link-import";
+import {
+  genericLabelForURL,
+  parseLinkImport,
+  providerKind,
+  type ImportedLink,
+} from "./link-import";
 import { linkToolsStyles as styles } from "./link-tools.stylex";
 
 const sx = stylex.attrs;
@@ -70,6 +77,45 @@ export function LinkToolsPage() {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
   }
 
+  async function enrichOne(index: number) {
+    const row = rows()[index];
+    if (!row) return;
+    setBusy(true);
+    setError("");
+    updateRow(index, await enrichRow(row));
+    setBusy(false);
+  }
+
+  async function enrichAll() {
+    if (rows().length === 0) return;
+    setBusy(true);
+    setError("");
+    const enriched: ImportedLink[] = [];
+    for (const row of rows()) enriched.push(await enrichRow(row));
+    setRows(enriched);
+    setBusy(false);
+    setMessage("Preview enrichment finished. Links without metadata are still ready to import.");
+  }
+
+  async function enrichRow(row: ImportedLink): Promise<ImportedLink> {
+    try {
+      const metadata = await fetchLinkPreview(row.url);
+      const generic = genericLabelForURL(row.url);
+      return {
+        ...row,
+        label: metadata.title && (row.label === generic || row.label === "Link") ? metadata.title : row.label,
+        kind: providerKind(metadata.provider, row.url),
+        thumbnail_url: row.thumbnail_url || metadata.image_url || "",
+        note: previewNote(metadata),
+      };
+    } catch (reason) {
+      return {
+        ...row,
+        note: `Preview unavailable (${readableError(reason)}). The ordinary link can still be imported.`,
+      };
+    }
+  }
+
   async function importRows() {
     if (!profile() || rows().length === 0) return;
     setBusy(true);
@@ -124,7 +170,7 @@ export function LinkToolsPage() {
                       <div>
                         <div {...sx(styles.eyebrow)}>SHARE & IMPORT</div>
                         <h1 {...sx(styles.title)}>Grow @{item().handle}.</h1>
-                        <p {...sx(styles.copy)}>Bring over a saved link list and share your Vuta anywhere.</p>
+                        <p {...sx(styles.copy)}>Bring over a saved link list, optionally enrich public HTTPS links with safe metadata, and share your Vuta anywhere.</p>
                       </div>
                       <a {...sx(styles.button, styles.secondary)} href="/create">Back to dashboard</a>
                     </div>
@@ -136,7 +182,7 @@ export function LinkToolsPage() {
                       <div>
                         <div {...sx(styles.panel)}>
                           <h2 {...sx(styles.sectionTitle)}>Import a link list</h2>
-                          <p {...sx(styles.sectionCopy)}>Paste CSV with label/title and URL columns, tab/pipe-separated rows, or one copied URL per line. Vutame imports at most 50 links at a time.</p>
+                          <p {...sx(styles.sectionCopy)}>Paste CSV with label/title and URL columns, tab/pipe-separated rows, or one copied URL per line. Vutame imports at most 50 links at a time and never needs to scrape another link-in-bio profile.</p>
                           <label {...sx(styles.field)}>
                             <span {...sx(styles.label)}>LINK LIST</span>
                             <textarea
@@ -149,7 +195,8 @@ export function LinkToolsPage() {
                           <div {...sx(styles.actions)}>
                             <button {...sx(styles.button)} type="button" disabled={busy()} onClick={parseSource}>Parse links</button>
                             <Show when={rows().length > 0}>
-                              <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void importRows()}>{busy() ? "Importing…" : `Import ${rows().length}`}</button>
+                              <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void enrichAll()}>{busy() ? "Working…" : "Enrich all"}</button>
+                              <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void importRows()}>{busy() ? "Working…" : `Import ${rows().length}`}</button>
                             </Show>
                           </div>
                           <Show when={parseErrors().length > 0}>
@@ -160,6 +207,7 @@ export function LinkToolsPage() {
                         <Show when={rows().length > 0}>
                           <div {...sx(styles.panel)}>
                             <h2 {...sx(styles.sectionTitle)}>Review before import</h2>
+                            <p {...sx(styles.sectionCopy)}>Safe preview enrichment is optional. If a provider blocks metadata requests, the ordinary typed link still imports and renders.</p>
                             <For each={rows()}>
                               {(row, index) => (
                                 <div {...sx(styles.row)}>
@@ -187,6 +235,9 @@ export function LinkToolsPage() {
                                     <span {...sx(styles.label)}>THUMBNAIL URL</span>
                                     <input {...sx(styles.input)} value={row.thumbnail_url} type="url" onInput={(event) => updateRow(index(), { thumbnail_url: event.currentTarget.value })} />
                                   </label>
+                                  <div {...sx(styles.actions)}>
+                                    <button {...sx(styles.button, styles.secondary)} type="button" disabled={busy()} onClick={() => void enrichOne(index())}>Fetch safe preview</button>
+                                  </div>
                                   <Show when={row.note}><p {...sx(styles.note)}>{row.note}</p></Show>
                                 </div>
                               )}
@@ -222,6 +273,12 @@ function SignedOut() {
 
 function ClaimFirst() {
   return <div {...sx(styles.panel, styles.empty)}><h1 {...sx(styles.title)}>Claim your Vuta first.</h1><p {...sx(styles.copy)}>Once you have a public profile, you can import links and download its QR code.</p><a {...sx(styles.button)} href="/create">Claim your Vuta</a></div>;
+}
+
+function previewNote(metadata: LinkPreviewMetadata) {
+  const parts = [metadata.site_name || metadata.provider];
+  if (metadata.description) parts.push(metadata.description);
+  return parts.filter(Boolean).join(" — ");
 }
 
 function readableError(reason: unknown) {
