@@ -2,7 +2,10 @@ module github.com/chrisbirster/vutame
 
 go 1.26
 
-require modernc.org/sqlite v1.58.0
+require (
+	modernc.org/sqlite v1.58.0
+	turso.tech/database/tursogo v0.7.2
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
