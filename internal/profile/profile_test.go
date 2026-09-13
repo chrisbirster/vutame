@@ -27,6 +27,32 @@ func TestValidateHandle(t *testing.T) {
 	}
 }
 
+func TestValidateTheme(t *testing.T) {
+	for _, theme := range []string{"midnight", "paper", "neon", "forest", "  PAPER  ", ""} {
+		got, err := ValidateTheme(theme)
+		if err != nil {
+			t.Errorf("ValidateTheme(%q) unexpected error: %v", theme, err)
+			continue
+		}
+		if theme == "" && got != DefaultTheme {
+			t.Errorf("empty theme = %q, want default %q", got, DefaultTheme)
+		}
+	}
+	if _, err := ValidateTheme("rainbow-admin"); !errors.Is(err, ErrInvalidProfile) {
+		t.Fatalf("unsupported theme error = %v, want ErrInvalidProfile", err)
+	}
+}
+
+func TestValidateUpdateInputNormalizesTheme(t *testing.T) {
+	input, err := ValidateUpdateInput(UpdateInput{DisplayName: " Tester ", Theme: " FOREST "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if input.DisplayName != "Tester" || input.Theme != "forest" {
+		t.Fatalf("input = %#v", input)
+	}
+}
+
 func TestMemoryStorePublicProfile(t *testing.T) {
 	store := NewMemoryStore([]Profile{{
 		ID: "usr_1", Handle: "tester", DisplayName: "Tester",
@@ -43,6 +69,9 @@ func TestMemoryStorePublicProfile(t *testing.T) {
 	}
 	if item.ID != "usr_1" {
 		t.Fatalf("ID = %q, want stable user ID", item.ID)
+	}
+	if item.Theme != DefaultTheme {
+		t.Fatalf("Theme = %q, want %q", item.Theme, DefaultTheme)
 	}
 	if len(item.Links) != 2 || item.Links[0].ID != "a" || item.Links[1].ID != "b" {
 		t.Fatalf("public links = %#v, want active links in position order", item.Links)
