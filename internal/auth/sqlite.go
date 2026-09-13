@@ -28,9 +28,22 @@ func OpenSQLite(dsn string) (*SQLiteStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("ping auth sqlite: %w", err)
 	}
+	store, err := NewSQLiteStore(db)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	return store, nil
+}
+
+// NewSQLiteStore binds the auth store to an already-open SQLite-compatible
+// database/sql pool. The caller owns the database lifetime.
+func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
+	if db == nil {
+		return nil, errors.New("auth: sqlite-compatible db is required")
+	}
 	store := &SQLiteStore{db: db}
 	if err := store.verifySchema(); err != nil {
-		db.Close()
 		return nil, err
 	}
 	return store, nil
