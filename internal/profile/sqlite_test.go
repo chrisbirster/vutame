@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -20,11 +21,39 @@ func TestSQLiteStorePublicProfile(t *testing.T) {
 	if item.ID != "usr_01_chrisdontmiss" || item.Handle != "chrisdontmiss" {
 		t.Fatalf("profile = %#v", item)
 	}
+	if item.Theme != DefaultTheme {
+		t.Fatalf("theme = %q, want default %q", item.Theme, DefaultTheme)
+	}
 	if len(item.Links) != 2 {
 		t.Fatalf("links = %d, want 2 active links", len(item.Links))
 	}
 	if item.Links[0].ID != "lnk_first" || item.Links[1].ID != "lnk_second" {
 		t.Fatalf("links not ordered: %#v", item.Links)
+	}
+}
+
+func TestSQLiteStorePersistsTheme(t *testing.T) {
+	store := newTestSQLiteStore(t)
+	seedSQLiteProfile(t, store.db)
+
+	updated, err := store.Update(context.Background(), "usr_01_chrisdontmiss", UpdateInput{
+		DisplayName: "Chris",
+		Bio:         "Theme test",
+		AvatarURL:   "https://example.com/avatar.png",
+		Theme:       "paper",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Theme != "paper" {
+		t.Fatalf("updated theme = %q, want paper", updated.Theme)
+	}
+	public, err := store.Get("chrisdontmiss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if public.Theme != "paper" {
+		t.Fatalf("public theme = %q, want paper", public.Theme)
 	}
 }
 
