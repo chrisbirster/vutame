@@ -25,6 +25,25 @@ export type Profile = {
   links: Link[];
 };
 
+export type Creator = {
+  handle: string;
+  display_name: string;
+  bio: string;
+  avatar_url?: string;
+  theme: string;
+  verified: boolean;
+  category?: string;
+  interests: string[];
+  follower_count: number;
+  following_count: number;
+  viewer_follows: boolean;
+};
+
+export type DiscoveryMetadataInput = {
+  category: string;
+  interests: string[];
+};
+
 export type ProfileUpdate = {
   display_name: string;
   bio: string;
@@ -102,6 +121,51 @@ export async function fetchDiscover(): Promise<Profile[]> {
   if (!response.ok) throw await apiError(response, "discover request failed");
   const payload = (await response.json()) as { profiles: Profile[] };
   return payload.profiles;
+}
+
+export async function searchCreators(input: {
+  q?: string;
+  category?: string;
+  interest?: string;
+  limit?: number;
+} = {}): Promise<Creator[]> {
+  const params = new URLSearchParams();
+  if (input.q?.trim()) params.set("q", input.q.trim());
+  if (input.category?.trim()) params.set("category", input.category.trim());
+  if (input.interest?.trim()) params.set("interest", input.interest.trim());
+  if (input.limit) params.set("limit", String(input.limit));
+  const suffix = params.size ? `?${params.toString()}` : "";
+  const response = await fetch(`/api/v1/discovery${suffix}`, { credentials: "same-origin" });
+  if (!response.ok) throw await apiError(response, "creator discovery failed");
+  const payload = (await response.json()) as { creators: Creator[] };
+  return payload.creators;
+}
+
+export async function fetchCreatorSocial(handle: string): Promise<Creator | null> {
+  const response = await fetch(`/api/v1/creators/${encodeURIComponent(handle)}/social`, { credentials: "same-origin" });
+  if (response.status === 404 || response.status === 503) return null;
+  if (!response.ok) throw await apiError(response, "creator social request failed");
+  return response.json() as Promise<Creator>;
+}
+
+export async function fetchFollowers(handle: string): Promise<Creator[]> {
+  return creatorList(`/api/v1/creators/${encodeURIComponent(handle)}/followers`);
+}
+
+export async function fetchFollowing(handle: string): Promise<Creator[]> {
+  return creatorList(`/api/v1/creators/${encodeURIComponent(handle)}/following`);
+}
+
+export async function followCreator(handle: string): Promise<void> {
+  return socialMutation("PUT", `/api/v1/me/follows/${encodeURIComponent(handle)}`, "follow failed");
+}
+
+export async function unfollowCreator(handle: string): Promise<void> {
+  return socialMutation("DELETE", `/api/v1/me/follows/${encodeURIComponent(handle)}`, "unfollow failed");
+}
+
+export async function updateDiscoveryProfile(input: DiscoveryMetadataInput): Promise<Creator> {
+  return mutationJSON<Creator>("PUT", "/api/v1/me/discovery-profile", input, "discovery profile update failed");
 }
 
 export async function fetchAppMeta(): Promise<AppMeta> {
@@ -211,6 +275,18 @@ export async function reorderOwnedLinks(ids: string[]): Promise<void> {
     body: JSON.stringify({ ids }),
   });
   if (!response.ok) throw await apiError(response, "reorder links failed");
+}
+
+async function creatorList(path: string): Promise<Creator[]> {
+  const response = await fetch(path, { credentials: "same-origin" });
+  if (!response.ok) throw await apiError(response, "creator list request failed");
+  const payload = (await response.json()) as { creators: Creator[] };
+  return payload.creators;
+}
+
+async function socialMutation(method: string, path: string, fallback: string): Promise<void> {
+  const response = await fetch(path, { method, credentials: "same-origin" });
+  if (!response.ok) throw await apiError(response, fallback);
 }
 
 async function authJSON<T>(path: string, body: unknown): Promise<T> {
