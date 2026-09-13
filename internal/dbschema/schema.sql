@@ -62,6 +62,18 @@ CREATE TABLE links (
 
 CREATE INDEX links_user_position_idx ON links(user_id, position, id);
 
+CREATE TABLE activity_events (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('profile_updated', 'link_featured')),
+  link_id TEXT REFERENCES links(id) ON DELETE SET NULL,
+  label TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX activity_events_created_idx ON activity_events(created_at DESC, id DESC);
+CREATE INDEX activity_events_user_created_idx ON activity_events(user_id, created_at DESC, id DESC);
+
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
