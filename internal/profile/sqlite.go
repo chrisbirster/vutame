@@ -75,16 +75,17 @@ func (s *SQLiteStore) Get(handle string) (Profile, error) {
 	var verified int
 	var did sql.NullString
 	err := s.db.QueryRow(`
-		SELECT user_id, handle, display_name, bio, avatar_url, verified, atproto_did
+		SELECT user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did
 		FROM profiles
 		WHERE handle = ?
-	`, handle).Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &verified, &did)
+	`, handle).Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Profile{}, ErrNotFound
 	}
 	if err != nil {
 		return Profile{}, fmt.Errorf("get profile: %w", err)
 	}
+	item.Theme = NormalizeTheme(item.Theme)
 	item.Verified = verified != 0
 	if did.Valid {
 		item.ATProtoDID = did.String
@@ -98,7 +99,7 @@ func (s *SQLiteStore) Get(handle string) (Profile, error) {
 
 func (s *SQLiteStore) Discover() ([]Profile, error) {
 	rows, err := s.db.Query(`
-		SELECT user_id, handle, display_name, bio, avatar_url, verified, atproto_did
+		SELECT user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did
 		FROM profiles
 		ORDER BY handle
 	`)
@@ -110,10 +111,11 @@ func (s *SQLiteStore) Discover() ([]Profile, error) {
 		var item Profile
 		var verified int
 		var did sql.NullString
-		if err := rows.Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &verified, &did); err != nil {
+		if err := rows.Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("scan discovered profile: %w", err)
 		}
+		item.Theme = NormalizeTheme(item.Theme)
 		item.Verified = verified != 0
 		if did.Valid {
 			item.ATProtoDID = did.String
@@ -190,9 +192,9 @@ func (s *SQLiteStore) Claim(ctx context.Context, userID, handle string) (Profile
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO profiles (user_id, handle, display_name, bio, avatar_url, verified, atproto_did, created_at, updated_at)
-		VALUES (?, ?, ?, '', '', 0, NULL, ?, ?)
-	`, userID, handle, "@"+handle, now, now)
+		INSERT INTO profiles (user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did, created_at, updated_at)
+		VALUES (?, ?, ?, '', '', ?, 0, NULL, ?, ?)
+	`, userID, handle, "@"+handle, DefaultTheme, now, now)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return Profile{}, ErrHandleTaken
@@ -212,9 +214,9 @@ func (s *SQLiteStore) Update(ctx context.Context, userID string, input UpdateInp
 	}
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE profiles
-		SET display_name = ?, bio = ?, avatar_url = ?, updated_at = ?
+		SET display_name = ?, bio = ?, avatar_url = ?, theme = ?, updated_at = ?
 		WHERE user_id = ?
-	`, input.DisplayName, input.Bio, input.AvatarURL, time.Now().UTC().Format(time.RFC3339Nano), strings.TrimSpace(userID))
+	`, input.DisplayName, input.Bio, input.AvatarURL, input.Theme, time.Now().UTC().Format(time.RFC3339Nano), strings.TrimSpace(userID))
 	if err != nil {
 		return Profile{}, fmt.Errorf("update profile: %w", err)
 	}
@@ -380,15 +382,16 @@ func (s *SQLiteStore) profileForUser(ctx context.Context, userID string) (Profil
 	var verified int
 	var did sql.NullString
 	err := s.db.QueryRowContext(ctx, `
-		SELECT user_id, handle, display_name, bio, avatar_url, verified, atproto_did
+		SELECT user_id, handle, display_name, bio, avatar_url, theme, verified, atproto_did
 		FROM profiles WHERE user_id = ?
-	`, strings.TrimSpace(userID)).Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &verified, &did)
+	`, strings.TrimSpace(userID)).Scan(&item.ID, &item.Handle, &item.DisplayName, &item.Bio, &item.AvatarURL, &item.Theme, &verified, &did)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Profile{}, ErrNotFound
 	}
 	if err != nil {
 		return Profile{}, fmt.Errorf("get owned profile: %w", err)
 	}
+	item.Theme = NormalizeTheme(item.Theme)
 	item.Verified = verified != 0
 	if did.Valid {
 		item.ATProtoDID = did.String

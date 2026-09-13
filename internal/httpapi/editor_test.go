@@ -37,13 +37,18 @@ func TestEditorAPILifecycle(t *testing.T) {
 	cookie := issueEditorSession(t, service, sender, "creator@example.com")
 
 	rec := editorRequest(t, handler, cookie, http.MethodPost, "/api/v1/me/profile/claim", `{"handle":"Creator-One"}`)
-	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"handle":"creator-one"`) {
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"handle":"creator-one"`) || !strings.Contains(rec.Body.String(), `"theme":"midnight"`) {
 		t.Fatalf("claim status=%d body=%q", rec.Code, rec.Body.String())
 	}
 
-	rec = editorRequest(t, handler, cookie, http.MethodPatch, "/api/v1/me/profile", `{"display_name":"Creator One","bio":"A real persisted Vuta.","avatar_url":"https://example.com/avatar.png"}`)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"display_name":"Creator One"`) {
+	rec = editorRequest(t, handler, cookie, http.MethodPatch, "/api/v1/me/profile", `{"display_name":"Creator One","bio":"A real persisted Vuta.","avatar_url":"https://example.com/avatar.png","theme":"forest"}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"display_name":"Creator One"`) || !strings.Contains(rec.Body.String(), `"theme":"forest"`) {
 		t.Fatalf("profile update status=%d body=%q", rec.Code, rec.Body.String())
+	}
+
+	rec = editorRequest(t, handler, cookie, http.MethodPatch, "/api/v1/me/profile", `{"display_name":"Creator One","bio":"A real persisted Vuta.","avatar_url":"https://example.com/avatar.png","theme":"not-a-theme"}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "unsupported theme") {
+		t.Fatalf("invalid theme status=%d body=%q", rec.Code, rec.Body.String())
 	}
 
 	rec = editorRequest(t, handler, cookie, http.MethodPost, "/api/v1/me/links", `{"label":"First","url":"https://example.com/first","kind":"website","is_active":true}`)
@@ -85,6 +90,9 @@ func TestEditorAPILifecycle(t *testing.T) {
 	if !strings.Contains(body, `"is_active":false`) {
 		t.Fatalf("owned profile should include hidden link: %q", body)
 	}
+	if !strings.Contains(body, `"theme":"forest"`) {
+		t.Fatalf("owned profile should preserve selected theme: %q", body)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/creator-one", nil)
 	publicRec := httptest.NewRecorder()
@@ -94,6 +102,9 @@ func TestEditorAPILifecycle(t *testing.T) {
 	}
 	if strings.Contains(publicRec.Body.String(), first.ID) || !strings.Contains(publicRec.Body.String(), second.ID) {
 		t.Fatalf("public profile visibility incorrect: %q", publicRec.Body.String())
+	}
+	if !strings.Contains(publicRec.Body.String(), `"theme":"forest"`) {
+		t.Fatalf("public profile should expose persisted theme: %q", publicRec.Body.String())
 	}
 
 	rec = editorRequest(t, handler, cookie, http.MethodDelete, "/api/v1/me/links/"+second.ID, "")

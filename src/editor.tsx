@@ -14,7 +14,9 @@ import {
   type AuthSession,
   type Link,
   type Profile,
+  type ProfileUpdate,
 } from "./api";
+import { ProfileEditorPanel } from "./profile-editor-panel";
 import { editorStyles as styles } from "./editor.stylex";
 
 const sx = stylex.attrs;
@@ -66,18 +68,12 @@ export function EditorPage() {
     }
   }
 
-  async function saveProfile(event: SubmitEvent) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget as HTMLFormElement);
+  async function saveProfile(input: ProfileUpdate) {
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      const item = await updateOwnedProfile({
-        display_name: field(data, "display_name"),
-        bio: field(data, "bio"),
-        avatar_url: field(data, "avatar_url"),
-      });
+      const item = await updateOwnedProfile(input);
       setProfile(item);
       setMessage("Profile saved.");
     } catch (reason) {
@@ -229,7 +225,7 @@ export function EditorPage() {
                       <div>
                         <div {...sx(styles.eyebrow)}>CREATOR DASHBOARD</div>
                         <h1 {...sx(styles.title)}>@{item().handle}</h1>
-                        <p {...sx(styles.copy)}>Edit the public identity behind <strong>vuta.me/@{item().handle}</strong>.</p>
+                        <p {...sx(styles.copy)}>Design the public identity behind <strong>vuta.me/@{item().handle}</strong>.</p>
                       </div>
                       <div {...sx(styles.actions)}>
                         <a {...sx(styles.button, styles.secondary)} href={`/@${item().handle}`}>View public profile</a>
@@ -240,43 +236,27 @@ export function EditorPage() {
                     <Show when={message()}><div {...sx(styles.message)}>{message()}</div></Show>
                     <Show when={error()}><div {...sx(styles.message, styles.error)}>{error()}</div></Show>
 
-                    <div {...sx(styles.grid)}>
-                      <form {...sx(styles.panel)} onSubmit={saveProfile}>
-                        <h2 {...sx(styles.sectionTitle)}>Profile</h2>
-                        <p {...sx(styles.sectionCopy)}>Your name, bio, and avatar URL appear at the top of your public Vuta.</p>
-                        <label {...sx(styles.field)}>
-                          <span {...sx(styles.label)}>DISPLAY NAME</span>
-                          <input {...sx(styles.input)} name="display_name" value={item().display_name} maxlength="80" />
-                        </label>
-                        <label {...sx(styles.field)}>
-                          <span {...sx(styles.label)}>BIO</span>
-                          <textarea {...sx(styles.input, styles.textarea)} name="bio" maxlength="320" value={item().bio} />
-                        </label>
-                        <label {...sx(styles.field)}>
-                          <span {...sx(styles.label)}>AVATAR URL</span>
-                          <input {...sx(styles.input)} name="avatar_url" type="url" value={item().avatar_url ?? ""} placeholder="https://…" />
-                        </label>
-                        <button {...sx(styles.button)} type="submit" disabled={busy()}>Save profile</button>
-                      </form>
+                    <ProfileEditorPanel profile={item()} busy={busy()} onSave={saveProfile} />
 
-                      <form {...sx(styles.panel)} onSubmit={addLink}>
-                        <h2 {...sx(styles.sectionTitle)}>Add link</h2>
-                        <p {...sx(styles.sectionCopy)}>New links are public by default and are added to the bottom of your stack.</p>
+                    <form {...sx(styles.panel)} onSubmit={addLink}>
+                      <h2 {...sx(styles.sectionTitle)}>Add link</h2>
+                      <p {...sx(styles.sectionCopy)}>New links are public by default and are added to the bottom of your stack.</p>
+                      <div {...sx(styles.grid)}>
                         <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>LABEL</span>
                           <input {...sx(styles.input)} name="label" maxlength="100" required placeholder="My latest project" />
                         </label>
                         <label {...sx(styles.field)}>
-                          <span {...sx(styles.label)}>URL</span>
-                          <input {...sx(styles.input)} name="url" type="url" required placeholder="https://example.com" />
-                        </label>
-                        <label {...sx(styles.field)}>
                           <span {...sx(styles.label)}>KIND</span>
                           <input {...sx(styles.input)} name="kind" value="website" maxlength="32" />
                         </label>
-                        <button {...sx(styles.button)} type="submit" disabled={busy()}>Add link</button>
-                      </form>
-                    </div>
+                      </div>
+                      <label {...sx(styles.field)}>
+                        <span {...sx(styles.label)}>URL</span>
+                        <input {...sx(styles.input)} name="url" type="url" required placeholder="https://example.com" />
+                      </label>
+                      <button {...sx(styles.button)} type="submit" disabled={busy()}>Add link</button>
+                    </form>
 
                     <div {...sx(styles.panel)}>
                       <h2 {...sx(styles.sectionTitle)}>Links</h2>
