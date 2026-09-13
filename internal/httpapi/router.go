@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/chrisbirster/vutame/internal/auth"
+	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
 )
 
@@ -15,6 +16,7 @@ type Options struct {
 	ProfileOrigin   string
 	Auth            *auth.Service
 	Editor          profile.Editor
+	Media           *media.Service
 	CookieSecure    bool
 }
 
@@ -76,6 +78,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 
 	registerAuthRoutes(mux, options)
 	registerEditorRoutes(mux, options)
+	registerMediaRoutes(mux, options)
 	mux.Handle("/", web)
 	return mux
 }

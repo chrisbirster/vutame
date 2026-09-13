@@ -15,6 +15,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/auth"
 	datastore "github.com/chrisbirster/vutame/internal/database"
 	"github.com/chrisbirster/vutame/internal/httpapi"
+	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
 	webapp "github.com/chrisbirster/vutame/internal/web"
 )
@@ -47,6 +48,11 @@ func main() {
 		slog.Error("open auth service", "error", err)
 		os.Exit(1)
 	}
+	mediaService, err := openMediaService(databaseRuntime)
+	if err != nil {
+		slog.Error("open media service", "error", err)
+		os.Exit(1)
+	}
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -55,6 +61,7 @@ func main() {
 			ProfileOrigin:   envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"),
 			Auth:            authService,
 			Editor:          editor,
+			Media:           mediaService,
 			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -72,7 +79,7 @@ func main() {
 		}
 	}()
 
-	slog.Info("vutame listening", "addr", server.Addr, "database_backend", databaseRuntime.Backend, "auth_enabled", authService != nil, "editor_enabled", editor != nil)
+	slog.Info("vutame listening", "addr", server.Addr, "database_backend", databaseRuntime.Backend, "auth_enabled", authService != nil, "editor_enabled", editor != nil, "media_enabled", mediaService != nil)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
@@ -132,6 +139,25 @@ func openAuthService(runtime *datastore.Runtime, cookieSecure bool) (*auth.Servi
 		return nil, err
 	}
 	service, err := auth.NewService(store, sender, secret, auth.Config{})
+	if err != nil {
+		return nil, err
+	}
+	return service, nil
+}
+
+func openMediaService(runtime *datastore.Runtime) (*media.Service, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	root := strings.TrimSpace(os.Getenv("VUTAME_MEDIA_DIR"))
+	if root == "" {
+		return nil, nil
+	}
+	blobs, err := media.NewFileStore(root)
+	if err != nil {
+		return nil, err
+	}
+	service, err := media.NewService(runtime.DB, blobs)
 	if err != nil {
 		return nil, err
 	}

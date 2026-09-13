@@ -18,7 +18,7 @@ Go service
         └─ Turso Cloud
 ```
 
-The local replica gives normal `database/sql` semantics to the existing auth/profile stores. Turso Cloud is the durable remote copy. The service bootstraps an empty local replica from the remote database, pushes/pulls on a bounded interval, and performs a final push during graceful shutdown.
+The local replica gives normal `database/sql` semantics to the existing auth/profile/media-metadata stores. Turso Cloud is the durable remote copy. The service bootstraps an empty local replica from the remote database, pushes/pulls on a bounded interval, and performs a final push during graceful shutdown.
 
 Required runtime variables:
 
@@ -69,6 +69,28 @@ VUTAME_AUTH_EMAIL_FROM='Vutame <login@vutame.com>'
 
 An Amazon SES SMTP endpoint and SES SMTP credentials can be supplied through the same variables. `VUTAME_AUTH_LOG_CODES=1` is local-development-only and is rejected when secure cookies are enabled.
 
+## Managed media
+
+Avatar uploads are optional and are enabled when `VUTAME_MEDIA_DIR` is configured:
+
+```bash
+VUTAME_MEDIA_DIR='/data/media'
+```
+
+The current blob adapter stores bytes on the filesystem while Turso stores only durable asset metadata and the profile's immutable `/media/<id>` URL. Uploaded content is limited to 5 MB and is accepted only when byte sniffing identifies JPEG, PNG, WebP, or GIF. Browser-provided MIME headers and file extensions are not trusted.
+
+Use a writable **persistent** mount for `VUTAME_MEDIA_DIR`. The distroless runtime runs as a non-root user, so the mounted directory must be writable by the container user. Do not point production media at `/tmp` unless losing uploaded avatars is acceptable.
+
+The filesystem adapter is appropriate for a single Vutame replica or infrastructure that supplies a shared filesystem. Multiple independent replicas must not use separate local media directories behind a load balancer: a request may reach a replica that does not own the requested blob. Before horizontally scaling uploads, add a shared object-storage `media.BlobStore` adapter such as S3/R2 and keep the HTTP/profile layer unchanged.
+
+Public assets are served from immutable URLs:
+
+```text
+/media/med_<opaque-id>
+```
+
+Responses use a one-year immutable cache policy. Replacing an avatar creates a new media ID and removes the previous asset after the database transaction commits, so cached URLs are never mutated in place.
+
 ## Domains
 
 Set the canonical public origins explicitly in hosted environments:
@@ -98,8 +120,9 @@ The Turso Go driver uses prebuilt platform libraries through `purego`, so the ap
 2. Run the Atlas production plan and inspect it.
 3. Apply the Atlas schema.
 4. Configure Vutame database/auth/SMTP/domain secrets.
-5. Deploy the container.
-6. Verify `/api/v1/healthz` and sign-in.
-7. Claim a test handle, edit it, restart the service, and confirm the same profile remains available.
+5. If managed avatar uploads are enabled, mount persistent media storage and set `VUTAME_MEDIA_DIR`.
+6. Deploy the container.
+7. Verify `/api/v1/healthz` and sign-in.
+8. Claim a test handle, edit it, upload/replace/delete an avatar if media is enabled, restart the service, and confirm the profile and current avatar remain available.
 
-Turso Database is pre-1.0. Keep provider backups/recovery enabled and test restoration before public beta.
+Turso Database is pre-1.0. Keep provider backups/recovery enabled and test restoration before public beta. Include the configured media volume/object store in backup and recovery exercises because database metadata alone cannot recreate uploaded image bytes.
