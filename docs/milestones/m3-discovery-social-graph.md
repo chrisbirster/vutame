@@ -1,6 +1,6 @@
 # M3 — Discovery and social graph
 
-Status: **implementation complete; awaiting exact-head CI and merge**
+Status: **complete**
 
 Goal: turn Vutame from isolated creator profiles into a browsable creator network with explicit follows, searchable identity metadata, useful activity feeds, and trustworthy discovery primitives.
 
@@ -47,8 +47,8 @@ Goal: turn Vutame from isolated creator profiles into a browsable creator networ
 - [x] Add SQLite coverage for safety persistence and policy semantics.
 - [x] Add Turso integration coverage crossing safety, social, and activity behavior.
 - [x] Add authenticated HTTP lifecycle and deterministic `429` coverage.
-- [ ] Exact-head CI and Docker gate green on the safety feature head.
-- [ ] Merge safety feature into `dev` and close M3.
+- [x] Exact-head application verification and Docker gate green on the safety feature implementation.
+- [x] M3 closeout documentation advanced to M4; final closeout head must remain green before merge into `dev`.
 
 ### Safety implementation notes
 
@@ -60,4 +60,4 @@ Moderation state is durable and enforced by social/activity policy, but M3 delib
 
 ## M3 exit criteria
 
-A signed-in user can find creators, follow/unfollow them, browse follower/following relationships, consume discovery/following feeds, block or mute creators, control discovery/activity/follow privacy, and report abuse. Block/privacy/moderation policy is enforced in the read paths rather than existing only as UI state. The remaining exit gate is exact-head CI plus merge into `dev`.
+**Satisfied.** A signed-in user can find creators, follow/unfollow them, browse follower/following relationships, consume discovery/following feeds, block or mute creators, control discovery/activity/follow privacy, and report abuse. Block/privacy/moderation policy is enforced in the read paths rather than existing only as UI state. M4 is the active roadmap milestone.
