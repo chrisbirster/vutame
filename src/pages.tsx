@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import { useParams } from "@solidjs/router";
 import * as stylex from "@stylexjs/stylex";
 import { fetchDiscover, fetchProfile, type Profile } from "./api";
+import { ProfileSurface } from "./profile-surface";
 import { styles } from "./styles.stylex";
 
 const sx = stylex.attrs;
@@ -79,7 +80,7 @@ export function DiscoverPage() {
                 <div {...sx(styles.avatar, styles.smallAvatar)}>{profile.handle.slice(0, 1).toUpperCase()}</div>
                 <strong>@{profile.handle}</strong>
                 <p {...sx(styles.muted)}>{profile.bio}</p>
-                <span {...sx(styles.cardMeta)}>{profile.links.length} links · view profile →</span>
+                <span {...sx(styles.cardMeta)}>{profile.links.length} links · {profile.theme || "midnight"} · view profile →</span>
               </a>
             )}
           </For>
@@ -100,9 +101,7 @@ export function CreatePage() {
       <div {...sx(styles.createCard)}>
         <div {...sx(styles.eyebrow)}>CLAIM YOUR VUTA</div>
         <h1 {...sx(styles.sectionTitle)}>Start with your name.</h1>
-        <p {...sx(styles.sectionIntro)}>
-          Accounts and persistence come next. This first slice proves the routing, profile surface, and product shape.
-        </p>
+        <p {...sx(styles.sectionIntro)}>Choose the short identity you want to share everywhere.</p>
         <label {...sx(styles.inputLabel)} for="handle">Your handle</label>
         <div {...sx(styles.handleInput)}>
           <span>vuta.me/@</span>
@@ -163,23 +162,7 @@ export function ProfilePage() {
             </Show>
           }
         >
-          {(item) => (
-            <article {...sx(styles.publicProfile)}>
-              <div {...sx(styles.avatar, styles.profileAvatar)}>{item().handle.slice(0, 1).toUpperCase()}</div>
-              <h1 {...sx(styles.profileTitle)}>{item().display_name}</h1>
-              <p {...sx(styles.profileBio)}>{item().bio}</p>
-              <div {...sx(styles.linkStack)}>
-                <For each={item().links}>
-                  {(link) => (
-                    <a {...sx(styles.publicLink)} href={link.url} target="_blank" rel="noreferrer">
-                      <span>{link.label}</span><span>↗</span>
-                    </a>
-                  )}
-                </For>
-              </div>
-              <a {...sx(styles.vutameBadge)} href="/">Made on vutame</a>
-            </article>
-          )}
+          {(item) => <div {...sx(styles.publicProfile)}><ProfileSurface profile={item()} /></div>}
         </Show>
       </Show>
     </section>
