@@ -6,15 +6,17 @@ Goal: give creators measurable value without turning Vutame into a raw surveilla
 
 ## Slice 1 — privacy-conscious analytics ingestion
 
-- [ ] Add durable profile-view and link-click events.
-- [ ] Track public profile views at the server-rendered profile boundary.
-- [ ] Route public link clicks through a safe server redirect so JavaScript and no-script profiles behave consistently.
-- [ ] Never persist raw IP addresses, full referrer URLs, or raw user-agent strings.
-- [ ] Persist only coarse device class and referrer host needed for aggregate reporting.
-- [ ] Filter obvious bots/crawlers before analytics ingestion.
-- [ ] Ensure disabled, scheduled, or expired links cannot be used through the analytics redirect.
-- [ ] Add SQLite and Turso coverage for ingestion and redirects.
+- [x] Add durable profile-view and link-click events.
+- [x] Track public profile views at the server-rendered profile boundary.
+- [x] Route public link clicks through a safe server redirect so JavaScript and no-script profiles behave consistently.
+- [x] Never persist raw IP addresses, full referrer URLs, or raw user-agent strings.
+- [x] Persist only coarse device class and referrer host needed for aggregate reporting.
+- [x] Filter obvious bots/crawlers before analytics ingestion.
+- [x] Ensure disabled, scheduled, or expired links cannot be used through the analytics redirect.
+- [x] Add SQLite, HTTP, and Turso coverage for ingestion and redirects.
 - [ ] Exact-head CI and Docker green; merge into `dev`.
+
+Profile-view events are currently recorded at the origin HTML boundary. The profile response retains its short public cache window, so a future CDN/edge-cache rollout must deliberately decide whether analytics moves to the edge or accepts origin-level undercounting rather than silently treating cached responses as origin views.
 
 ## Slice 2 — creator analytics dashboard
 
@@ -47,6 +49,7 @@ Goal: give creators measurable value without turning Vutame into a raw surveilla
 - Referrers are reduced to a normalized host; paths, queries, and fragments are discarded.
 - Click redirects resolve the canonical link target from Vutame storage rather than accepting an arbitrary destination from the request.
 - Bot filtering is conservative and metrics remain approximate rather than pretending to identify a person.
+- Analytics write failures never prevent a public profile from rendering or a valid public link from redirecting.
 
 ## M4 exit criteria
 
