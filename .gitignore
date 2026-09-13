@@ -5,5 +5,6 @@ internal/web/dist/*
 vutame
 vutame.db
 vutame.db-*
+.data/
 .env
 .env.*
