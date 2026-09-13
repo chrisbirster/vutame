@@ -73,7 +73,9 @@ func TestDiscoveryPaginationHTTP(t *testing.T) {
 	}
 
 	bad := httptest.NewRecorder()
-	handler.ServeHTTP(bad, httptest.NewRequest(http.MethodGet, "/api/v1/discovery?cursor=%%%", nil))
+	// URL-safe base64 for "not-a-number": syntactically valid query input,
+	// but semantically invalid for the discovery cursor decoder.
+	handler.ServeHTTP(bad, httptest.NewRequest(http.MethodGet, "/api/v1/discovery?cursor=bm90LWEtbnVtYmVy", nil))
 	if bad.Code != http.StatusBadRequest {
 		t.Fatalf("invalid cursor status = %d body=%s", bad.Code, bad.Body.String())
 	}
