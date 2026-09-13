@@ -11,6 +11,8 @@ import (
 	"github.com/chrisbirster/vutame/internal/linkpreview"
 	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
+	"github.com/chrisbirster/vutame/internal/ratelimit"
+	"github.com/chrisbirster/vutame/internal/safety"
 	"github.com/chrisbirster/vutame/internal/social"
 )
 
@@ -23,6 +25,8 @@ type Options struct {
 	Previewer       linkpreview.Fetcher
 	Social          social.Store
 	Activity        activity.Store
+	Safety          safety.Store
+	Limiter         ratelimit.Gate
 	CookieSecure    bool
 }
 
@@ -88,6 +92,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	registerLinkPreviewRoutes(mux, options)
 	registerSocialRoutes(mux, profiles, options)
 	registerActivityRoutes(mux, options)
+	registerSafetyRoutes(mux, options)
 	registerProfileUtilityRoutes(mux, profiles, options)
 	mux.Handle("/", profileHTMLHandler(web, profiles, options))
 	return mux
@@ -104,6 +109,9 @@ func normalizeOptions(options Options) Options {
 	}
 	if options.Previewer == nil {
 		options.Previewer = linkpreview.NewService()
+	}
+	if options.Limiter == nil {
+		options.Limiter = ratelimit.New()
 	}
 	return options
 }
