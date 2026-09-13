@@ -8,6 +8,7 @@ import {
   ProfilePage,
 } from "./pages";
 import { EditorPage, SettingsPage } from "./editor";
+import { FeedPage } from "./feed";
 import { LinkToolsPage } from "./link-tools";
 import { SignInPage } from "./signin";
 import { SocialSettingsPage } from "./social-settings";
@@ -16,6 +17,7 @@ export const Router = createRouter({
   routes: [
     { path: "/", component: HomePage },
     { path: "/discover", component: DiscoverPage },
+    { path: "/feed", component: FeedPage },
     { path: "/create", component: EditorPage },
     { path: "/settings", component: SettingsPage },
     { path: "/settings/import", component: LinkToolsPage },

@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chrisbirster/vutame/internal/activity"
 	"github.com/chrisbirster/vutame/internal/auth"
 	datastore "github.com/chrisbirster/vutame/internal/database"
 	"github.com/chrisbirster/vutame/internal/httpapi"
@@ -59,6 +60,12 @@ func main() {
 		slog.Error("open social graph store", "error", err)
 		os.Exit(1)
 	}
+	activityStore, err := openActivityStore(databaseRuntime)
+	if err != nil {
+		slog.Error("open activity store", "error", err)
+		os.Exit(1)
+	}
+	editor = activity.NewRecordingEditor(editor, activityStore)
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -69,6 +76,7 @@ func main() {
 			Editor:          editor,
 			Media:           mediaService,
 			Social:          socialStore,
+			Activity:        activityStore,
 			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -94,6 +102,7 @@ func main() {
 		"editor_enabled", editor != nil,
 		"media_enabled", mediaService != nil,
 		"social_enabled", socialStore != nil,
+		"activity_enabled", activityStore != nil,
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
@@ -142,6 +151,13 @@ func openSocialStore(runtime *datastore.Runtime) (social.Store, error) {
 		return nil, nil
 	}
 	return social.NewSQLiteStore(runtime.DB)
+}
+
+func openActivityStore(runtime *datastore.Runtime) (activity.Store, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	return activity.NewSQLiteStore(runtime.DB)
 }
 
 func openAuthService(runtime *datastore.Runtime, cookieSecure bool) (*auth.Service, error) {

@@ -2,28 +2,33 @@
 
 Status: **in progress**
 
-Goal: turn Vutame from isolated creator profiles into a browsable creator network with explicit follows, searchable identity metadata, and trustworthy discovery primitives.
+Goal: turn Vutame from isolated creator profiles into a browsable creator network with explicit follows, searchable identity metadata, useful activity feeds, and trustworthy discovery primitives.
 
 ## Slice 1 — follow graph and searchable discovery
 
-- [ ] Add durable follow relationships with uniqueness and self-follow protection.
-- [ ] Add follow/unfollow APIs derived from the authenticated session.
-- [ ] Add follower/following counts to public creator summaries.
-- [ ] Add follower/following list endpoints.
-- [ ] Add profile categories/interests as searchable creator metadata.
-- [ ] Add public creator search by handle, display name, bio, category, and interest.
-- [ ] Add a real discovery/search UI with follow controls for signed-in users.
-- [ ] Add SQLite and Turso coverage for follow/search behavior.
-- [ ] Add authenticated HTTP lifecycle coverage.
-- [ ] CI green on the exact feature head and merge into `dev`.
+- [x] Add durable follow relationships with uniqueness and self-follow protection.
+- [x] Add follow/unfollow APIs derived from the authenticated session.
+- [x] Add follower/following counts to public creator summaries.
+- [x] Add follower/following list endpoints.
+- [x] Add profile categories/interests as searchable creator metadata.
+- [x] Add public creator search by handle, display name, bio, category, and interest.
+- [x] Add a real discovery/search UI with follow controls for signed-in users.
+- [x] Add SQLite and Turso coverage for follow/search behavior.
+- [x] Add authenticated HTTP lifecycle coverage.
+- [x] CI green on the exact feature head and merge into `dev`.
 
 ## Slice 2 — activity and feeds
 
-- [ ] Persist public activity events for profile changes and newly featured links.
-- [ ] Add following activity feed.
-- [ ] Add recent creator/activity discovery surfaces.
-- [ ] Add trending heuristics that do not require M4 analytics infrastructure.
-- [ ] Add pagination/cursors for discovery and feed endpoints.
+- [x] Persist bounded public activity events for profile changes and newly featured links.
+- [x] Record activity through an editor decorator so successful profile/link mutations are not coupled to feed delivery.
+- [x] Add a signed-in following activity feed.
+- [x] Add a public recent-activity surface.
+- [x] Add a transparent trending heuristic based on seven-day public activity plus follower count.
+- [x] Add opaque cursor pagination to following and recent activity feeds.
+- [x] Add a responsive `/feed` UI with Following, Recent, Trending, and load-more states.
+- [x] Add SQLite and Turso coverage for activity/feed behavior.
+- [ ] Add cursor pagination to creator search/discovery results.
+- [ ] CI green on the exact activity-feed feature head and merge into `dev`.
 
 ## Slice 3 — safety and rollout controls
 

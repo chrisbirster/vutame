@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/chrisbirster/vutame/internal/activity"
 	"github.com/chrisbirster/vutame/internal/auth"
 	"github.com/chrisbirster/vutame/internal/linkpreview"
 	"github.com/chrisbirster/vutame/internal/media"
@@ -21,6 +22,7 @@ type Options struct {
 	Media           *media.Service
 	Previewer       linkpreview.Fetcher
 	Social          social.Store
+	Activity        activity.Store
 	CookieSecure    bool
 }
 
@@ -85,6 +87,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	registerMediaRoutes(mux, options)
 	registerLinkPreviewRoutes(mux, options)
 	registerSocialRoutes(mux, profiles, options)
+	registerActivityRoutes(mux, options)
 	registerProfileUtilityRoutes(mux, profiles, options)
 	mux.Handle("/", profileHTMLHandler(web, profiles, options))
 	return mux
