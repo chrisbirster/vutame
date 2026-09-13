@@ -50,7 +50,7 @@ func TestVutameStoresRunOnTursoEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("claim profile: %v", err)
 	}
-	if claimed.Handle != "turso-creator" || claimed.ID != userID {
+	if claimed.Handle != "turso-creator" || claimed.ID != userID || claimed.Theme != profile.DefaultTheme {
 		t.Fatalf("claimed profile = %#v", claimed)
 	}
 
@@ -58,12 +58,13 @@ func TestVutameStoresRunOnTursoEngine(t *testing.T) {
 		DisplayName: "Turso Creator",
 		Bio:         "Running Vutame on the production database engine.",
 		AvatarURL:   "https://example.com/avatar.png",
+		Theme:       "neon",
 	})
 	if err != nil {
 		t.Fatalf("update profile: %v", err)
 	}
-	if updated.DisplayName != "Turso Creator" {
-		t.Fatalf("display name = %q", updated.DisplayName)
+	if updated.DisplayName != "Turso Creator" || updated.Theme != "neon" {
+		t.Fatalf("updated profile = %#v", updated)
 	}
 
 	first, err := profileStore.CreateLink(ctx, userID, profile.LinkInput{
@@ -101,7 +102,7 @@ func TestVutameStoresRunOnTursoEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load public profile: %v", err)
 	}
-	if public.DisplayName != "Turso Creator" {
+	if public.DisplayName != "Turso Creator" || public.Theme != "neon" {
 		t.Fatalf("public profile = %#v", public)
 	}
 	if len(public.Links) != 1 || public.Links[0].ID != second.ID || public.Links[0].Position != 0 {
@@ -111,6 +112,9 @@ func TestVutameStoresRunOnTursoEngine(t *testing.T) {
 	owned, err := profileStore.GetOwned(ctx, userID)
 	if err != nil {
 		t.Fatalf("load owned profile: %v", err)
+	}
+	if owned.Theme != "neon" {
+		t.Fatalf("owned theme = %q, want neon", owned.Theme)
 	}
 	if len(owned.Links) != 2 || owned.Links[0].ID != second.ID || owned.Links[1].ID != first.ID || owned.Links[1].IsActive {
 		t.Fatalf("owned links = %#v", owned.Links)
