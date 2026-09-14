@@ -24,7 +24,7 @@ func NewService(db *sql.DB, secrets ...[]byte) (*Service, error) {
 	if db == nil {
 		return nil, errors.New("analytics: database is required")
 	}
-	for _, table := range []string{"profiles", "links", "analytics_events"} {
+	for _, table := range []string{"profiles", "links", "analytics_events", "creator_data_settings"} {
 		var count int
 		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
 			return nil, fmt.Errorf("verify analytics table %s: %w", table, err)
@@ -101,12 +101,30 @@ func (s *Service) record(ctx context.Context, userID, linkID, kind string, metad
 	if len(visitorHash) > 64 {
 		visitorHash = ""
 	}
-	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO analytics_events (id, user_id, link_id, kind, visitor_hash, referrer_host, device_class, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, id, userID, nullableLink, kind, visitorHash, referrer, device, time.Now().UTC().Format(time.RFC3339Nano))
+	campaign := NormalizeCampaign(metadata.Campaign)
+	now := time.Now().UTC()
+	retentionDays, err := s.analyticsRetentionDays(ctx, userID)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin analytics record: %w", err)
+	}
+	defer tx.Rollback()
+	cutoff := now.AddDate(0, 0, -retentionDays).Format(time.RFC3339)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM analytics_events WHERE user_id = ? AND created_at < ?`, userID, cutoff); err != nil {
+		return fmt.Errorf("purge expired analytics: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO analytics_events (id, user_id, link_id, kind, visitor_hash, campaign, referrer_host, device_class, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, id, userID, nullableLink, kind, visitorHash, campaign, referrer, device, now.Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("record analytics event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit analytics event: %w", err)
 	}
 	return nil
 }
@@ -121,18 +139,26 @@ func (s *Service) Dashboard(ctx context.Context, userID string, days int, now ti
 		return Dashboard{}, ErrProfileRequired
 	}
 	days = NormalizeDashboardDays(days)
+	retentionDays, err := s.analyticsRetentionDays(ctx, userID)
+	if err != nil {
+		return Dashboard{}, err
+	}
+	if days > retentionDays {
+		days = retentionDays
+	}
 	today := time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), 0, 0, 0, 0, time.UTC)
 	start := today.AddDate(0, 0, -(days - 1))
 	cutoff := start.Format(time.RFC3339)
 
 	result := Dashboard{
-		Days: days,
+		Days:      days,
 		StartDate: start.Format("2006-01-02"),
-		EndDate: today.Format("2006-01-02"),
-		Series: make([]DailyPoint, days),
-		TopLinks: []LinkMetric{},
+		EndDate:   today.Format("2006-01-02"),
+		Series:    make([]DailyPoint, days),
+		TopLinks:  []LinkMetric{},
 		Referrers: []Breakdown{},
-		Devices: []Breakdown{},
+		Devices:   []Breakdown{},
+		Campaigns: []Breakdown{},
 	}
 	for index := 0; index < days; index++ {
 		result.Series[index].Date = start.AddDate(0, 0, index).Format("2006-01-02")
@@ -197,6 +223,10 @@ func (s *Service) Dashboard(ctx context.Context, userID string, days int, now ti
 	if err != nil {
 		return Dashboard{}, err
 	}
+	result.Campaigns, err = s.campaignBreakdown(ctx, userID, cutoff)
+	if err != nil {
+		return Dashboard{}, err
+	}
 	return result, nil
 }
 
@@ -254,6 +284,48 @@ func (s *Service) breakdown(ctx context.Context, userID, cutoff, expression stri
 		return nil, fmt.Errorf("iterate analytics breakdown: %w", err)
 	}
 	return items, nil
+}
+
+func (s *Service) campaignBreakdown(ctx context.Context, userID, cutoff string) ([]Breakdown, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT CASE WHEN campaign = '' THEN 'Unattributed' ELSE campaign END AS name, COUNT(*) AS count
+		FROM analytics_events
+		WHERE user_id = ? AND kind = 'profile_view' AND created_at >= ?
+		GROUP BY CASE WHEN campaign = '' THEN 'Unattributed' ELSE campaign END
+		ORDER BY count DESC, name
+		LIMIT 10
+	`, userID, cutoff)
+	if err != nil {
+		return nil, fmt.Errorf("query campaign breakdown: %w", err)
+	}
+	defer rows.Close()
+	items := make([]Breakdown, 0)
+	for rows.Next() {
+		var item Breakdown
+		if err := rows.Scan(&item.Name, &item.Count); err != nil {
+			return nil, fmt.Errorf("scan campaign breakdown: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate campaign breakdown: %w", err)
+	}
+	return items, nil
+}
+
+func (s *Service) analyticsRetentionDays(ctx context.Context, userID string) (int, error) {
+	var days int
+	err := s.db.QueryRowContext(ctx, `SELECT analytics_retention_days FROM creator_data_settings WHERE user_id = ?`, userID).Scan(&days)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 90, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get analytics retention: %w", err)
+	}
+	if days != 30 && days != 90 && days != 365 {
+		return 90, nil
+	}
+	return days, nil
 }
 
 func analyticsID() (string, error) {
