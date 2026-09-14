@@ -171,6 +171,81 @@ CREATE TABLE contact_submissions (
 CREATE INDEX contact_submissions_user_created_idx ON contact_submissions(user_id, created_at DESC, id DESC);
 CREATE INDEX contact_submissions_user_email_idx ON contact_submissions(user_id, email, created_at DESC);
 
+CREATE TABLE custom_domains (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  hostname TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  verification_token TEXT NOT NULL,
+  verified_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(user_id, hostname)
+);
+
+CREATE INDEX custom_domains_user_idx ON custom_domains(user_id, created_at DESC);
+CREATE INDEX custom_domains_verified_idx ON custom_domains(hostname, verified_at);
+
+CREATE TABLE verification_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  method TEXT NOT NULL CHECK (method IN ('custom_domain', 'atproto')),
+  evidence TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX verification_requests_user_idx ON verification_requests(user_id, created_at DESC);
+CREATE INDEX verification_requests_status_idx ON verification_requests(status, created_at DESC);
+
+CREATE TABLE api_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  token_prefix TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  scopes TEXT NOT NULL,
+  expires_at TEXT,
+  last_used_at TEXT,
+  revoked_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX api_tokens_user_idx ON api_tokens(user_id, created_at DESC);
+CREATE INDEX api_tokens_hash_idx ON api_tokens(token_hash);
+
+CREATE TABLE webhooks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  events TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX webhooks_user_idx ON webhooks(user_id, created_at DESC);
+
+CREATE TABLE webhook_deliveries (
+  id TEXT PRIMARY KEY,
+  webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  event TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'delivered', 'failed')),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  response_code INTEGER,
+  next_attempt_at TEXT NOT NULL,
+  delivered_at TEXT,
+  last_error TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX webhook_deliveries_pending_idx ON webhook_deliveries(status, next_attempt_at, created_at);
+CREATE INDEX webhook_deliveries_user_idx ON webhook_deliveries(user_id, created_at DESC);
+
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
