@@ -48,7 +48,7 @@ Daily visitor approximation uses `HMAC(secret, creator ID + UTC day + client IP)
 - [x] Add 30/90/365-day analytics and contact retention controls with immediate purge when shortened.
 - [x] Purge expired analytics opportunistically as new analytics arrives and expired contacts as contacts are read/created.
 - [x] Add SQLite, authenticated HTTP, and Turso-engine coverage for consent, retention, contact isolation, and campaign reporting.
-- [ ] Exact-head CI and Docker green; merge into `dev`.
+- [x] Exact-head CI and Docker green; ready to merge into `dev`.
 
 The creator Growth workspace lives at `/growth`. Public contact capture is opt-in and appears only when a creator explicitly enables it. The public request includes a hidden honeypot and consent checkbox; automated honeypot submissions receive a generic success response without storage so Vutame does not disclose its spam decision.
 
