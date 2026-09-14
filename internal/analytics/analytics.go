@@ -18,10 +18,12 @@ const (
 
 	DefaultDashboardDays = 30
 	MaxDashboardDays     = 90
+	MaxCampaignLength    = 80
 )
 
 type Metadata struct {
 	VisitorHash  string
+	Campaign     string
 	ReferrerHost string
 	DeviceClass  string
 	Bot          bool
@@ -52,14 +54,15 @@ type Breakdown struct {
 }
 
 type Dashboard struct {
-	Days      int         `json:"days"`
-	StartDate string      `json:"start_date"`
-	EndDate   string      `json:"end_date"`
-	Summary   Summary     `json:"summary"`
+	Days      int          `json:"days"`
+	StartDate string       `json:"start_date"`
+	EndDate   string       `json:"end_date"`
+	Summary   Summary      `json:"summary"`
 	Series    []DailyPoint `json:"series"`
 	TopLinks  []LinkMetric `json:"top_links"`
-	Referrers []Breakdown `json:"referrers"`
-	Devices   []Breakdown `json:"devices"`
+	Referrers []Breakdown  `json:"referrers"`
+	Devices   []Breakdown  `json:"devices"`
+	Campaigns []Breakdown  `json:"campaigns"`
 }
 
 func MetadataFromHeaders(referrer, userAgent string) Metadata {
@@ -68,6 +71,14 @@ func MetadataFromHeaders(referrer, userAgent string) Metadata {
 		DeviceClass:  deviceClass(userAgent),
 		Bot:          isBot(userAgent),
 	}
+}
+
+func NormalizeCampaign(value string) string {
+	value = strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+	if len([]rune(value)) > MaxCampaignLength {
+		return ""
+	}
+	return value
 }
 
 func NormalizeDashboardDays(days int) int {
