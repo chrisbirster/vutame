@@ -65,7 +65,7 @@ func validateATURL(value string, allowHTTP bool) error {
 		return ErrInvalidIdentity
 	}
 	if parsed.Scheme != "https" {
-		if !(allowHTTP && parsed.Scheme == "http" && (parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "::1" || parsed.Hostname() == "localhost")) {
+		if !(allowHTTP && parsed.Scheme == "http" && developmentHost(parsed.Hostname())) {
 			return ErrInvalidIdentity
 		}
 	}
@@ -83,6 +83,45 @@ func validateATURL(value string, allowHTTP bool) error {
 	return nil
 }
 
+// validateATOrigin validates protocol metadata values that are required to be
+// simple origins. PDS service endpoints allow an explicit HTTPS port, while an
+// authorization-server issuer must not spell out the default :443 port.
+func validateATOrigin(value string, allowHTTP, rejectDefaultHTTPSPort bool) error {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return ErrInvalidIdentity
+	}
+	if parsed.Path != "" && parsed.Path != "/" {
+		return ErrInvalidIdentity
+	}
+	if parsed.Scheme != "https" {
+		if !(allowHTTP && parsed.Scheme == "http" && developmentHost(parsed.Hostname())) {
+			return ErrInvalidIdentity
+		}
+	}
+	if rejectDefaultHTTPSPort && parsed.Scheme == "https" && parsed.Port() == "443" {
+		return ErrInvalidIdentity
+	}
+	if parsed.Port() != "" {
+		if _, err := net.LookupPort("tcp", parsed.Port()); err != nil {
+			return ErrInvalidIdentity
+		}
+	}
+	if address, err := netip.ParseAddr(parsed.Hostname()); err == nil && !publicATAddress(address) {
+		if !(allowHTTP && address.IsLoopback()) {
+			return ErrInvalidIdentity
+		}
+	}
+	if len(parsed.String()) > 4096 {
+		return ErrInvalidIdentity
+	}
+	return nil
+}
+
+func developmentHost(host string) bool {
+	return host == "127.0.0.1" || host == "::1" || host == "localhost"
+}
+
 func readJSONResponse(response *http.Response, target any) error {
 	defer response.Body.Close()
 	reader := io.LimitReader(response.Body, maxATProtoResponse+1)
@@ -94,11 +133,18 @@ func readJSONResponse(response *http.Response, target any) error {
 		return errors.New("AT Protocol response too large")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		var apiError struct { Error string `json:"error"`; Message string `json:"message"` }
+		var apiError struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
 		_ = json.Unmarshal(data, &apiError)
 		message := strings.TrimSpace(apiError.Message)
-		if message == "" { message = strings.TrimSpace(apiError.Error) }
-		if message == "" { message = response.Status }
+		if message == "" {
+			message = strings.TrimSpace(apiError.Error)
+		}
+		if message == "" {
+			message = response.Status
+		}
 		return fmt.Errorf("AT Protocol request failed: %s", message)
 	}
 	if err := json.Unmarshal(data, target); err != nil {
