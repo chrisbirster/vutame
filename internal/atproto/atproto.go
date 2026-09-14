@@ -19,31 +19,33 @@ const (
 )
 
 var (
-	ErrNotLinked       = errors.New("AT Protocol account not linked")
-	ErrInvalidIdentity = errors.New("invalid AT Protocol identity")
-	ErrOAuthState      = errors.New("invalid or expired AT Protocol OAuth state")
-	ErrOAuthResponse   = errors.New("invalid AT Protocol OAuth response")
-	ErrConflict        = errors.New("AT Protocol record conflict")
+	ErrNotLinked          = errors.New("AT Protocol account not linked")
+	ErrInvalidIdentity    = errors.New("invalid AT Protocol identity")
+	ErrOAuthState         = errors.New("invalid or expired AT Protocol OAuth state")
+	ErrOAuthResponse      = errors.New("invalid AT Protocol OAuth response")
+	ErrConflict           = errors.New("AT Protocol record conflict")
+	ErrPublishingDisabled = errors.New("AT Protocol publication is disabled")
 )
 
 type Config struct {
-	ClientID      string
-	RedirectURI   string
-	Scope         string
-	AllowHTTP     bool
-	JetstreamURL  string
-	ClientName    string
-	MarketingURL  string
+	ClientID     string
+	RedirectURI  string
+	Scope        string
+	AllowHTTP    bool
+	JetstreamURL string
+	ClientName   string
+	MarketingURL string
 }
 
 type Store struct {
-	db       *sql.DB
-	secret   []byte
-	config   Config
-	client   *http.Client
-	resolver TXTResolver
-	now      func() time.Time
-	refresh  sync.Mutex
+	db        *sql.DB
+	secret    []byte
+	config    Config
+	client    *http.Client
+	resolver  TXTResolver
+	now       func() time.Time
+	refresh   sync.Mutex
+	pdsNonces sync.Map
 }
 
 type TXTResolver interface {
@@ -51,14 +53,14 @@ type TXTResolver interface {
 }
 
 type Account struct {
-	DID             string `json:"did"`
-	Handle          string `json:"handle,omitempty"`
-	PDSURL          string `json:"pds_url"`
-	Scope           string `json:"scope"`
-	ConflictPolicy  string `json:"conflict_policy"`
-	PublishEnabled  bool   `json:"publish_enabled"`
-	ExpiresAt       string `json:"expires_at"`
-	UpdatedAt       string `json:"updated_at"`
+	DID            string `json:"did"`
+	Handle         string `json:"handle,omitempty"`
+	PDSURL         string `json:"pds_url"`
+	Scope          string `json:"scope"`
+	ConflictPolicy string `json:"conflict_policy"`
+	PublishEnabled bool   `json:"publish_enabled"`
+	ExpiresAt      string `json:"expires_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 type Identity struct {
