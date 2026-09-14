@@ -30,18 +30,29 @@ Profile-view events are currently recorded at the origin HTML boundary. The prof
 - [x] Keep the dashboard aggregate-only; do not expose stored visitor hashes or event-level visitor data.
 - [x] Exclude known bots from creator metrics by default.
 - [x] Add SQLite, authenticated HTTP, and Turso-engine coverage for dashboard behavior.
-- [x] Exact-head CI and Docker green; ready to merge into `dev`.
+- [x] Exact-head CI and Docker green; merged into `dev`.
 
 Daily visitor approximation uses `HMAC(secret, creator ID + UTC day + client IP)` and stores only a truncated encoded digest. On Fly.io, the request path accepts a syntactically valid platform `Fly-Client-IP`; otherwise it falls back to the socket remote address and deliberately ignores generic forwarding headers. Because the token rotates each UTC day, range-level `unique_visitors` is the sum of daily unique counts, not a claim that Vutame recognizes the same person across multiple days.
 
-Adding `visitor_hash` changes the desired Atlas schema. Apply the schema before deploying an app build containing Slice 2.
-
 ## Slice 3 — campaigns and growth blocks
 
-- [ ] Add UTM/campaign-link helper.
-- [ ] Add contact/email capture blocks with explicit consent text.
-- [ ] Add campaign attribution to aggregate analytics where technically and legally appropriate.
-- [ ] Add creator controls for analytics/contact retention.
+- [x] Add a UTM/campaign-link helper in the creator Growth workspace.
+- [x] Persist only bounded `utm_campaign` labels for attribution; do not persist `utm_source` or `utm_medium` as visitor fields.
+- [x] Add creator-configurable public contact/email capture blocks.
+- [x] Require affirmative consent for contact submissions and snapshot the exact consent text with each stored address.
+- [x] Keep collected email addresses out of analytics event rows.
+- [x] Prevent suspended creators from collecting contacts.
+- [x] Add honeypot handling and a conservative public submission rate limit.
+- [x] Add campaign attribution to aggregate profile-view analytics.
+- [x] Add creator-owned recent contact lists without cross-account leakage.
+- [x] Add 30/90/365-day analytics and contact retention controls with immediate purge when shortened.
+- [x] Purge expired analytics opportunistically as new analytics arrives and expired contacts as contacts are read/created.
+- [x] Add SQLite, authenticated HTTP, and Turso-engine coverage for consent, retention, contact isolation, and campaign reporting.
+- [ ] Exact-head CI and Docker green; merge into `dev`.
+
+The creator Growth workspace lives at `/growth`. Public contact capture is opt-in and appears only when a creator explicitly enables it. The public request includes a hidden honeypot and consent checkbox; automated honeypot submissions receive a generic success response without storage so Vutame does not disclose its spam decision.
+
+Retention settings are finite rather than “forever”: 30, 90, or 365 days. Shortening a retention period immediately removes older creator-owned rows. The schema additions (`campaign`, `creator_data_settings`, `contact_blocks`, and `contact_submissions`) require an Atlas schema apply before deploying Slice 3.
 
 ## Slice 4 — creator operations
 
@@ -50,7 +61,7 @@ Adding `visitor_hash` changes the desired Atlas schema. Apply the schema before 
 - [ ] Add export of profile and analytics data.
 - [ ] Add scoped API tokens and webhooks for advanced integrations.
 
-## Analytics privacy invariants
+## Analytics and growth privacy invariants
 
 - Raw visitor IP addresses are request-time inputs only and are never stored in analytics event rows.
 - Raw user-agent strings are not stored; only a coarse device class may be persisted.
@@ -59,6 +70,9 @@ Adding `visitor_hash` changes the desired Atlas schema. Apply the schema before 
 - Bot filtering is conservative and metrics remain approximate rather than pretending to identify a person.
 - Analytics write failures never prevent a public profile from rendering or a valid public link from redirecting.
 - Stored visitor hashes are creator-scoped and day-scoped and are never returned by creator analytics APIs.
+- Contact email addresses are stored only in the contact domain and never copied into analytics events.
+- Every stored contact keeps the consent statement that was shown when the visitor submitted it.
+- Campaign attribution stores a bounded campaign label, not arbitrary profile query strings or a browsing history.
 
 ## M4 exit criteria
 
