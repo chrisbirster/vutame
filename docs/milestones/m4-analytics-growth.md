@@ -1,6 +1,6 @@
 # M4 — Analytics, growth, and creator tools
 
-Status: **in progress**
+Status: **complete**
 
 Goal: give creators measurable value without turning Vutame into a raw surveillance log.
 
@@ -49,7 +49,7 @@ Goal: give creators measurable value without turning Vutame into a raw surveilla
 - [x] Add durable webhook delivery rows, public-network-only delivery, HMAC signatures, bounded redirects, retry/backoff, and terminal failure state.
 - [x] Add `/operations` creator workspace for domains, exports, tokens, webhooks, and verification history.
 - [x] Add SQLite, authenticated HTTP, custom-host rendering, and Turso-engine coverage.
-- [ ] Exact-head CI and Docker green; merge into `dev`.
+- [x] Exact-head CI and Docker green; ready to merge into `dev`.
 
 ## Analytics and growth privacy invariants
 
@@ -65,4 +65,4 @@ Goal: give creators measurable value without turning Vutame into a raw surveilla
 
 ## M4 exit criteria
 
-Creators can understand profile traffic and link performance, create useful campaign/contact growth tools, use verified custom domains, export their data, and integrate through appropriately scoped automation surfaces without Vutame storing unnecessary raw visitor data.
+**Satisfied.** Creators can understand profile traffic and link performance, create campaign/contact growth tools, use verified custom domains, export their data, and integrate through appropriately scoped automation surfaces without Vutame storing unnecessary raw visitor data.
