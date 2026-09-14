@@ -19,6 +19,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/growth"
 	"github.com/chrisbirster/vutame/internal/httpapi"
 	"github.com/chrisbirster/vutame/internal/media"
+	"github.com/chrisbirster/vutame/internal/operations"
 	"github.com/chrisbirster/vutame/internal/profile"
 	"github.com/chrisbirster/vutame/internal/safety"
 	"github.com/chrisbirster/vutame/internal/social"
@@ -68,6 +69,11 @@ func main() {
 		slog.Error("open growth service", "error", err)
 		os.Exit(1)
 	}
+	operationsStore, err := openOperationsStore(databaseRuntime)
+	if err != nil {
+		slog.Error("open creator operations store", "error", err)
+		os.Exit(1)
+	}
 	safetyStore, err := openSafetyStore(databaseRuntime)
 	if err != nil {
 		slog.Error("open safety store", "error", err)
@@ -83,7 +89,11 @@ func main() {
 		slog.Error("open activity store", "error", err)
 		os.Exit(1)
 	}
+	activityStore = operations.WrapActivityStore(activityStore, operationsStore)
 	editor = activity.NewRecordingEditor(editor, activityStore)
+	if operationsStore != nil {
+		go operationsStore.RunWebhookWorker(ctx, 5*time.Second)
+	}
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -97,6 +107,7 @@ func main() {
 			Activity:        activityStore,
 			Analytics:       analyticsService,
 			Growth:          growthService,
+			Operations:      operationsStore,
 			Safety:          safetyStore,
 			CookieSecure:    cookieSecure,
 		}),
@@ -126,6 +137,7 @@ func main() {
 		"activity_enabled", activityStore != nil,
 		"analytics_enabled", analyticsService != nil,
 		"growth_enabled", growthService != nil,
+		"operations_enabled", operationsStore != nil,
 		"safety_enabled", safetyStore != nil,
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -208,6 +220,17 @@ func openGrowthService(runtime *datastore.Runtime) (*growth.Service, error) {
 		return nil, nil
 	}
 	return growth.NewService(runtime.DB)
+}
+
+func openOperationsStore(runtime *datastore.Runtime) (*operations.Store, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	secret := []byte(strings.TrimSpace(os.Getenv("VUTAME_AUTH_SECRET")))
+	if len(secret) < 32 {
+		return nil, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when creator operations are enabled")
+	}
+	return operations.NewStore(runtime.DB, secret)
 }
 
 func openSafetyStore(runtime *datastore.Runtime) (safety.Store, error) {

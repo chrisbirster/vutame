@@ -12,6 +12,7 @@ import { EditorPage, SettingsPage } from "./editor";
 import { FeedPage } from "./feed";
 import { GrowthPage } from "./growth-page";
 import { LinkToolsPage } from "./link-tools";
+import { OperationsPage } from "./operations-page";
 import { SafetySettingsPage } from "./safety-settings";
 import { SignInPage } from "./signin";
 import { SocialSettingsPage } from "./social-settings";
@@ -23,6 +24,7 @@ export const Router = createRouter({
     { path: "/feed", component: FeedPage },
     { path: "/analytics", component: AnalyticsPage },
     { path: "/growth", component: GrowthPage },
+    { path: "/operations", component: OperationsPage },
     { path: "/create", component: EditorPage },
     { path: "/settings", component: SettingsPage },
     { path: "/settings/import", component: LinkToolsPage },

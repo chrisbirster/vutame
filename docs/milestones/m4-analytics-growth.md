@@ -1,6 +1,6 @@
 # M4 — Analytics, growth, and creator tools
 
-Status: **in progress**
+Status: **complete**
 
 Goal: give creators measurable value without turning Vutame into a raw surveillance log.
 
@@ -16,50 +16,40 @@ Goal: give creators measurable value without turning Vutame into a raw surveilla
 - [x] Add SQLite, HTTP, and Turso coverage for ingestion and redirects.
 - [x] Exact-head CI and Docker green; merged into `dev`.
 
-Profile-view events are currently recorded at the origin HTML boundary. The profile response retains its short public cache window, so a future CDN/edge-cache rollout must deliberately decide whether analytics moves to the edge or accepts origin-level undercounting rather than silently treating cached responses as origin views.
-
 ## Slice 2 — creator analytics dashboard
 
-- [x] Add privacy-conscious daily unique-visitor approximation with rotating keyed hashes.
-- [x] Scope visitor hashes to both creator and UTC day so stored values are not cross-creator or long-lived identifiers.
-- [x] Add daily profile-view and link-click time series.
-- [x] Add top-link reporting.
-- [x] Add referrer-host and coarse-device breakdowns.
-- [x] Add creator-owned analytics API endpoints with 1–90 day range bounds.
-- [x] Add a responsive analytics dashboard with 7/30/90-day controls.
-- [x] Keep the dashboard aggregate-only; do not expose stored visitor hashes or event-level visitor data.
-- [x] Exclude known bots from creator metrics by default.
-- [x] Add SQLite, authenticated HTTP, and Turso-engine coverage for dashboard behavior.
+- [x] Add privacy-conscious daily unique-visitor approximation with creator/day-scoped rotating keyed hashes.
+- [x] Add daily profile-view and link-click time series, top-link reporting, referrer-host, device, and campaign breakdowns.
+- [x] Add creator-owned aggregate analytics APIs and responsive 7/30/90-day dashboard.
+- [x] Keep visitor hashes private and exclude known bots from metrics.
+- [x] Add SQLite, authenticated HTTP, and Turso-engine coverage.
 - [x] Exact-head CI and Docker green; merged into `dev`.
-
-Daily visitor approximation uses `HMAC(secret, creator ID + UTC day + client IP)` and stores only a truncated encoded digest. On Fly.io, the request path accepts a syntactically valid platform `Fly-Client-IP`; otherwise it falls back to the socket remote address and deliberately ignores generic forwarding headers. Because the token rotates each UTC day, range-level `unique_visitors` is the sum of daily unique counts, not a claim that Vutame recognizes the same person across multiple days.
 
 ## Slice 3 — campaigns and growth blocks
 
-- [x] Add a UTM/campaign-link helper in the creator Growth workspace.
-- [x] Persist only bounded `utm_campaign` labels for attribution; do not persist `utm_source` or `utm_medium` as visitor fields.
-- [x] Add creator-configurable public contact/email capture blocks.
-- [x] Require affirmative consent for contact submissions and snapshot the exact consent text with each stored address.
-- [x] Keep collected email addresses out of analytics event rows.
-- [x] Prevent suspended creators from collecting contacts.
-- [x] Add honeypot handling and a conservative public submission rate limit.
-- [x] Add campaign attribution to aggregate profile-view analytics.
-- [x] Add creator-owned recent contact lists without cross-account leakage.
-- [x] Add 30/90/365-day analytics and contact retention controls with immediate purge when shortened.
-- [x] Purge expired analytics opportunistically as new analytics arrives and expired contacts as contacts are read/created.
-- [x] Add SQLite, authenticated HTTP, and Turso-engine coverage for consent, retention, contact isolation, and campaign reporting.
-- [x] Exact-head CI and Docker green; ready to merge into `dev`.
-
-The creator Growth workspace lives at `/growth`. Public contact capture is opt-in and appears only when a creator explicitly enables it. The public request includes a hidden honeypot and consent checkbox; automated honeypot submissions receive a generic success response without storage so Vutame does not disclose its spam decision.
-
-Retention settings are finite rather than “forever”: 30, 90, or 365 days. Shortening a retention period immediately removes older creator-owned rows. The schema additions (`campaign`, `creator_data_settings`, `contact_blocks`, and `contact_submissions`) require an Atlas schema apply before deploying Slice 3.
+- [x] Add creator UTM/campaign URL helper and bounded campaign attribution.
+- [x] Add opt-in contact capture with affirmative consent and exact consent snapshots.
+- [x] Keep collected email addresses outside analytics rows.
+- [x] Add honeypot/rate-limit protections and prevent suspended creators from collecting contacts.
+- [x] Add creator-owned contact lists and finite 30/90/365-day analytics/contact retention with immediate purge.
+- [x] Add SQLite, authenticated HTTP, and Turso coverage.
+- [x] Exact-head CI and Docker green; merged into `dev`.
 
 ## Slice 4 — creator operations
 
-- [ ] Add custom-domain and canonical-domain handling.
-- [ ] Define creator verification policy/workflow.
-- [ ] Add export of profile and analytics data.
-- [ ] Add scoped API tokens and webhooks for advanced integrations.
+- [x] Add self-service custom domains with DNS TXT ownership proof.
+- [x] Serve verified domains directly at `/` and prefer the verified domain for canonical/OG URLs.
+- [x] Define verification semantics: the verified badge means control of a supported public identity proof, beginning with DNS-proven custom domains.
+- [x] Persist verification history instead of silently mutating a badge with no audit trail.
+- [x] Add creator JSON export for account/profile/link/metadata/analytics/contact/domain/integration data while excluding visitor and token hashes.
+- [x] Add one-time plaintext API tokens stored only as HMAC hashes.
+- [x] Add least-privilege scopes (`profile:read`, `profile:write`, `analytics:read`, `contacts:read`) and bearer read APIs.
+- [x] Add HTTPS-only signed webhooks for profile updates and featured links.
+- [x] Derive webhook signing secrets from the server secret rather than persisting raw signing keys.
+- [x] Add durable webhook delivery rows, public-network-only delivery, HMAC signatures, bounded redirects, retry/backoff, and terminal failure state.
+- [x] Add `/operations` creator workspace for domains, exports, tokens, webhooks, and verification history.
+- [x] Add SQLite, authenticated HTTP, custom-host rendering, and Turso-engine coverage.
+- [x] Exact-head CI and Docker green; ready to merge into `dev`.
 
 ## Analytics and growth privacy invariants
 
@@ -67,13 +57,12 @@ Retention settings are finite rather than “forever”: 30, 90, or 365 days. Sh
 - Raw user-agent strings are not stored; only a coarse device class may be persisted.
 - Referrers are reduced to a normalized host; paths, queries, and fragments are discarded.
 - Click redirects resolve the canonical link target from Vutame storage rather than accepting an arbitrary destination from the request.
-- Bot filtering is conservative and metrics remain approximate rather than pretending to identify a person.
-- Analytics write failures never prevent a public profile from rendering or a valid public link from redirecting.
-- Stored visitor hashes are creator-scoped and day-scoped and are never returned by creator analytics APIs.
+- Stored visitor hashes are creator-scoped/day-scoped and are never returned by creator analytics APIs or exports.
 - Contact email addresses are stored only in the contact domain and never copied into analytics events.
-- Every stored contact keeps the consent statement that was shown when the visitor submitted it.
-- Campaign attribution stores a bounded campaign label, not arbitrary profile query strings or a browsing history.
+- Every stored contact keeps the consent statement shown at submission time.
+- API token plaintext is returned once; only an HMAC hash and short display prefix persist.
+- Webhook endpoints must be HTTPS and deliveries resolve only public network addresses to limit SSRF exposure.
 
 ## M4 exit criteria
 
-Creators can understand profile traffic and link performance, create useful campaign/contact growth tools, use custom domains where supported, export their data, and integrate through appropriately scoped automation surfaces without Vutame storing unnecessary raw visitor data.
+**Satisfied.** Creators can understand profile traffic and link performance, create campaign/contact growth tools, use verified custom domains, export their data, and integrate through appropriately scoped automation surfaces without Vutame storing unnecessary raw visitor data.

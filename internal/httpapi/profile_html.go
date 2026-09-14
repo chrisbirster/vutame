@@ -34,20 +34,37 @@ func (w *capturedResponse) Write(data []byte) (int, error) { return w.body.Write
 
 func profileHTMLHandler(web http.Handler, profiles profile.Store, options Options) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || !strings.HasPrefix(r.URL.Path, "/@") {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			web.ServeHTTP(w, r)
 			return
 		}
-		rawHandle := strings.TrimPrefix(r.URL.Path, "/@")
-		if rawHandle == "" || strings.Contains(rawHandle, "/") {
-			web.ServeHTTP(w, r)
-			return
+
+		handle := ""
+		customHost := ""
+		if options.Operations != nil && r.URL.Path == "/" {
+			if resolved, err := options.Operations.HandleForHost(r.Context(), r.Host); err == nil {
+				handle = resolved
+				customHost = requestHostname(r.Host)
+			}
 		}
-		handle, err := url.PathUnescape(rawHandle)
-		if err != nil {
-			web.ServeHTTP(w, r)
-			return
+		if handle == "" {
+			if !strings.HasPrefix(r.URL.Path, "/@") {
+				web.ServeHTTP(w, r)
+				return
+			}
+			rawHandle := strings.TrimPrefix(r.URL.Path, "/@")
+			if rawHandle == "" || strings.Contains(rawHandle, "/") {
+				web.ServeHTTP(w, r)
+				return
+			}
+			decoded, err := url.PathUnescape(rawHandle)
+			if err != nil {
+				web.ServeHTTP(w, r)
+				return
+			}
+			handle = decoded
 		}
+
 		item, err := profiles.Get(handle)
 		if err != nil {
 			web.ServeHTTP(w, r)
@@ -68,7 +85,19 @@ func profileHTMLHandler(web http.Handler, profiles profile.Store, options Option
 			return
 		}
 
-		rendered := renderProfileHTML(captured.body.String(), item, options.ProfileOrigin)
+		canonical := strings.TrimRight(options.ProfileOrigin, "/") + "/@" + url.PathEscape(item.Handle)
+		assetOrigin := strings.TrimRight(options.ProfileOrigin, "/")
+		if customHost != "" {
+			canonical = "https://" + customHost + "/"
+			assetOrigin = "https://" + customHost
+		} else if options.Operations != nil {
+			if hostname, err := options.Operations.CanonicalDomain(r.Context(), item.ID); err == nil {
+				canonical = "https://" + hostname + "/"
+				assetOrigin = "https://" + hostname
+			}
+		}
+
+		rendered := renderProfileHTML(captured.body.String(), item, canonical, assetOrigin)
 		recordProfileView(r, item, options)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
@@ -80,12 +109,15 @@ func profileHTMLHandler(web http.Handler, profiles profile.Store, options Option
 	})
 }
 
-func renderProfileHTML(index string, item profile.Profile, profileOrigin string) string {
-	origin := strings.TrimRight(strings.TrimSpace(profileOrigin), "/")
-	if origin == "" {
-		origin = "https://vuta.me"
+func renderProfileHTML(index string, item profile.Profile, canonical, assetOrigin string) string {
+	canonical = strings.TrimSpace(canonical)
+	if canonical == "" {
+		canonical = "https://vuta.me/@" + url.PathEscape(item.Handle)
 	}
-	canonical := origin + "/@" + url.PathEscape(item.Handle)
+	assetOrigin = strings.TrimRight(strings.TrimSpace(assetOrigin), "/")
+	if assetOrigin == "" {
+		assetOrigin = "https://vuta.me"
+	}
 	display := strings.TrimSpace(item.DisplayName)
 	if display == "" {
 		display = "@" + item.Handle
@@ -96,7 +128,7 @@ func renderProfileHTML(index string, item profile.Profile, profileOrigin string)
 		description = fmt.Sprintf("Links, projects, and places from @%s on Vutame.", item.Handle)
 	}
 	description = truncateRunes(description, 160)
-	image := publicAssetURL(origin, item.AvatarURL)
+	image := publicAssetURL(assetOrigin, item.AvatarURL)
 
 	index = titlePattern.ReplaceAllString(index, "<title>"+html.EscapeString(title)+"</title>")
 	descriptionTag := `<meta name="description" content="` + html.EscapeString(description) + `">`
@@ -156,6 +188,14 @@ func renderNoScriptProfile(item profile.Profile, canonical, image string) string
 	output.WriteString(`<p><a href="` + html.EscapeString(canonical) + `">View this Vuta</a></p>`)
 	output.WriteString(`</main>`)
 	return output.String()
+}
+
+func requestHostname(value string) string {
+	host := strings.TrimSpace(strings.ToLower(value))
+	if parsed, err := url.Parse("https://" + host); err == nil && parsed.Hostname() != "" {
+		return parsed.Hostname()
+	}
+	return strings.TrimSuffix(host, ".")
 }
 
 func publicAssetURL(origin, value string) string {
