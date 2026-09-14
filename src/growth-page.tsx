@@ -37,15 +37,15 @@ export function GrowthPage() {
       const current = await fetchAuthSession();
       setSession(current);
       if (!current.authenticated) return;
-      const [owned, appMeta, contactBlock, retention, recent] = await Promise.all([
-        fetchOwnedProfile(),
-        fetchAppMeta(),
+      const [owned, appMeta] = await Promise.all([fetchOwnedProfile(), fetchAppMeta()]);
+      setProfile(owned);
+      setMeta(appMeta);
+      if (!owned) return;
+      const [contactBlock, retention, recent] = await Promise.all([
         fetchOwnedContactBlock(),
         fetchDataSettings(),
         fetchContacts(),
       ]);
-      setProfile(owned);
-      setMeta(appMeta);
       setBlock(contactBlock);
       setSettings(retention);
       setContacts(recent);
