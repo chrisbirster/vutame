@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 )
@@ -133,7 +134,6 @@ func (s *Store) DeleteDomain(ctx context.Context, userID, domainID string) error
 	if count == 0 {
 		return ErrDomainNotFound
 	}
-	// A verified badge stays true if another verified identity proof remains.
 	var proofs int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM custom_domains WHERE user_id = ? AND verified_at IS NOT NULL`, userID).Scan(&proofs); err == nil && proofs == 0 {
 		_, _ = s.db.ExecContext(ctx, `UPDATE profiles SET verified = 0, updated_at = ? WHERE user_id = ? AND atproto_did IS NULL`, s.now().UTC().Format(time.RFC3339Nano), userID)
@@ -143,11 +143,10 @@ func (s *Store) DeleteDomain(ctx context.Context, userID, domainID string) error
 
 func (s *Store) HandleForHost(ctx context.Context, host string) (string, error) {
 	hostname := strings.TrimSpace(strings.ToLower(host))
-	if strings.Contains(hostname, ":") {
-		if normalized, _, err := strings.Cut(hostname, ":"); err == false {
-			hostname = normalized
-		}
+	if splitHost, _, err := net.SplitHostPort(hostname); err == nil {
+		hostname = strings.Trim(splitHost, "[]")
 	}
+	hostname = strings.TrimSuffix(hostname, ".")
 	var handle string
 	if err := s.db.QueryRowContext(ctx, `
 		SELECT p.handle FROM custom_domains d JOIN profiles p ON p.user_id = d.user_id
@@ -159,6 +158,20 @@ func (s *Store) HandleForHost(ctx context.Context, host string) (string, error) 
 		return "", fmt.Errorf("resolve custom domain: %w", err)
 	}
 	return handle, nil
+}
+
+func (s *Store) CanonicalDomain(ctx context.Context, userID string) (string, error) {
+	var hostname string
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT hostname FROM custom_domains WHERE user_id = ? AND verified_at IS NOT NULL
+		ORDER BY verified_at ASC, id ASC LIMIT 1
+	`, strings.TrimSpace(userID)).Scan(&hostname); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrDomainNotFound
+		}
+		return "", err
+	}
+	return hostname, nil
 }
 
 func (s *Store) VerificationRequests(ctx context.Context, userID string) ([]VerificationRequest, error) {
