@@ -16,10 +16,10 @@ Vutame is **ATProto-native, not ATProto-required**. A linked DID is an additiona
 - [x] Discover PDS resource metadata and authorization-server metadata.
 - [x] Implement OAuth Authorization Code + PKCE + PAR + DPoP state flow.
 - [x] Encrypt OAuth access tokens, refresh tokens, PKCE verifier, and DPoP private keys at rest.
-- [ ] Expose OAuth client metadata, resolution, linking, callback, settings, and unlink HTTP APIs.
-- [ ] Wire AT Protocol configuration into the Go runtime.
-- [ ] Add a creator-facing AT Protocol settings workspace.
-- [ ] Cover identity/OAuth invariants on SQLite and the Turso engine.
+- [x] Expose OAuth client metadata, resolution, linking, callback, settings, and unlink HTTP APIs.
+- [x] Wire AT Protocol configuration into the Go runtime.
+- [x] Add a creator-facing AT Protocol settings workspace.
+- [x] Cover identity/OAuth invariants on SQLite and the Turso engine.
 - [ ] Exact-head CI and Docker build green; merge Slice 1 into `dev`.
 
 ## Slice 2 — PDS publication and conflict rules
