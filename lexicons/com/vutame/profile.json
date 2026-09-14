@@ -1,0 +1,23 @@
+{
+  "lexicon": 1,
+  "id": "com.vutame.profile",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["displayName", "handle", "updatedAt"],
+        "properties": {
+          "displayName": { "type": "string", "maxGraphemes": 80, "maxLength": 320 },
+          "handle": { "type": "string", "maxLength": 253 },
+          "bio": { "type": "string", "maxGraphemes": 320, "maxLength": 1280 },
+          "avatarUrl": { "type": "string", "format": "uri", "maxLength": 2048 },
+          "theme": { "type": "string", "maxLength": 40 },
+          "verified": { "type": "boolean" },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

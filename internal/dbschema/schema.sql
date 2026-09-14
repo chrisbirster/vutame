@@ -30,7 +30,6 @@ CREATE TABLE creator_interests (
   interest TEXT NOT NULL COLLATE NOCASE,
   PRIMARY KEY (user_id, interest)
 );
-
 CREATE INDEX creator_interests_interest_idx ON creator_interests(interest, user_id);
 
 CREATE TABLE creator_privacy (
@@ -55,7 +54,6 @@ CREATE TABLE follows (
   PRIMARY KEY (follower_user_id, following_user_id),
   CHECK (follower_user_id <> following_user_id)
 );
-
 CREATE INDEX follows_follower_created_idx ON follows(follower_user_id, created_at DESC, following_user_id);
 CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, follower_user_id);
 
@@ -66,7 +64,6 @@ CREATE TABLE blocks (
   PRIMARY KEY (blocker_user_id, blocked_user_id),
   CHECK (blocker_user_id <> blocked_user_id)
 );
-
 CREATE INDEX blocks_blocked_idx ON blocks(blocked_user_id, blocker_user_id);
 
 CREATE TABLE mutes (
@@ -76,7 +73,6 @@ CREATE TABLE mutes (
   PRIMARY KEY (muter_user_id, muted_user_id),
   CHECK (muter_user_id <> muted_user_id)
 );
-
 CREATE INDEX mutes_muted_idx ON mutes(muted_user_id, muter_user_id);
 
 CREATE TABLE reports (
@@ -90,7 +86,6 @@ CREATE TABLE reports (
   updated_at TEXT NOT NULL,
   CHECK (reporter_user_id <> reported_user_id)
 );
-
 CREATE INDEX reports_status_created_idx ON reports(status, created_at DESC, id DESC);
 CREATE INDEX reports_reported_created_idx ON reports(reported_user_id, created_at DESC, id DESC);
 
@@ -109,7 +104,6 @@ CREATE TABLE links (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-
 CREATE INDEX links_user_position_idx ON links(user_id, position, id);
 
 CREATE TABLE activity_events (
@@ -120,7 +114,6 @@ CREATE TABLE activity_events (
   label TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL
 );
-
 CREATE INDEX activity_events_created_idx ON activity_events(created_at DESC, id DESC);
 CREATE INDEX activity_events_user_created_idx ON activity_events(user_id, created_at DESC, id DESC);
 
@@ -135,7 +128,6 @@ CREATE TABLE analytics_events (
   device_class TEXT NOT NULL DEFAULT 'unknown' CHECK (device_class IN ('desktop', 'mobile', 'tablet', 'unknown')),
   created_at TEXT NOT NULL
 );
-
 CREATE INDEX analytics_events_user_created_idx ON analytics_events(user_id, created_at DESC, id DESC);
 CREATE INDEX analytics_events_link_created_idx ON analytics_events(link_id, created_at DESC, id DESC);
 CREATE INDEX analytics_events_kind_created_idx ON analytics_events(kind, created_at DESC, id DESC);
@@ -167,7 +159,6 @@ CREATE TABLE contact_submissions (
   campaign TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL
 );
-
 CREATE INDEX contact_submissions_user_created_idx ON contact_submissions(user_id, created_at DESC, id DESC);
 CREATE INDEX contact_submissions_user_email_idx ON contact_submissions(user_id, email, created_at DESC);
 
@@ -181,7 +172,6 @@ CREATE TABLE custom_domains (
   updated_at TEXT NOT NULL,
   UNIQUE(user_id, hostname)
 );
-
 CREATE INDEX custom_domains_user_idx ON custom_domains(user_id, created_at DESC);
 CREATE INDEX custom_domains_verified_idx ON custom_domains(hostname, verified_at);
 
@@ -195,7 +185,6 @@ CREATE TABLE verification_requests (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-
 CREATE INDEX verification_requests_user_idx ON verification_requests(user_id, created_at DESC);
 CREATE INDEX verification_requests_status_idx ON verification_requests(status, created_at DESC);
 
@@ -211,7 +200,6 @@ CREATE TABLE api_tokens (
   revoked_at TEXT,
   created_at TEXT NOT NULL
 );
-
 CREATE INDEX api_tokens_user_idx ON api_tokens(user_id, created_at DESC);
 CREATE INDEX api_tokens_hash_idx ON api_tokens(token_hash);
 
@@ -224,7 +212,6 @@ CREATE TABLE webhooks (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-
 CREATE INDEX webhooks_user_idx ON webhooks(user_id, created_at DESC);
 
 CREATE TABLE webhook_deliveries (
@@ -242,9 +229,90 @@ CREATE TABLE webhook_deliveries (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-
 CREATE INDEX webhook_deliveries_pending_idx ON webhook_deliveries(status, next_attempt_at, created_at);
 CREATE INDEX webhook_deliveries_user_idx ON webhook_deliveries(user_id, created_at DESC);
+
+CREATE TABLE atproto_oauth_states (
+  state_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  identifier TEXT NOT NULL,
+  expected_did TEXT NOT NULL,
+  pds_url TEXT NOT NULL,
+  issuer TEXT NOT NULL,
+  token_endpoint TEXT NOT NULL,
+  verifier_enc TEXT NOT NULL,
+  dpop_key_enc TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX atproto_oauth_states_expires_idx ON atproto_oauth_states(expires_at);
+
+CREATE TABLE atproto_accounts (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  did TEXT NOT NULL UNIQUE,
+  handle TEXT NOT NULL DEFAULT '',
+  pds_url TEXT NOT NULL,
+  issuer TEXT NOT NULL,
+  token_endpoint TEXT NOT NULL,
+  access_token_enc TEXT NOT NULL,
+  refresh_token_enc TEXT NOT NULL,
+  dpop_key_enc TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  conflict_policy TEXT NOT NULL DEFAULT 'vutame_wins' CHECK (conflict_policy IN ('vutame_wins', 'pds_wins')),
+  publish_enabled INTEGER NOT NULL DEFAULT 0 CHECK (publish_enabled IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX atproto_accounts_did_idx ON atproto_accounts(did);
+CREATE INDEX atproto_accounts_handle_idx ON atproto_accounts(handle COLLATE NOCASE);
+
+CREATE TABLE atproto_records (
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  collection TEXT NOT NULL,
+  rkey TEXT NOT NULL,
+  cid TEXT NOT NULL DEFAULT '',
+  local_updated_at TEXT NOT NULL DEFAULT '',
+  synced_at TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  PRIMARY KEY (user_id, collection, rkey)
+);
+CREATE INDEX atproto_records_user_synced_idx ON atproto_records(user_id, synced_at DESC);
+
+CREATE TABLE atproto_indexed_profiles (
+  did TEXT PRIMARY KEY,
+  handle TEXT NOT NULL DEFAULT '',
+  display_name TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  avatar_url TEXT NOT NULL DEFAULT '',
+  theme TEXT NOT NULL DEFAULT 'midnight',
+  verified INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0, 1)),
+  record_json TEXT NOT NULL,
+  indexed_at TEXT NOT NULL
+);
+CREATE INDEX atproto_indexed_profiles_handle_idx ON atproto_indexed_profiles(handle COLLATE NOCASE);
+CREATE INDEX atproto_indexed_profiles_name_idx ON atproto_indexed_profiles(display_name COLLATE NOCASE);
+
+CREATE TABLE atproto_indexed_links (
+  did TEXT NOT NULL REFERENCES atproto_indexed_profiles(did) ON DELETE CASCADE,
+  rkey TEXT NOT NULL,
+  label TEXT NOT NULL,
+  url TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'website',
+  thumbnail_url TEXT NOT NULL DEFAULT '',
+  featured INTEGER NOT NULL DEFAULT 0 CHECK (featured IN (0, 1)),
+  position INTEGER NOT NULL DEFAULT 0,
+  record_json TEXT NOT NULL,
+  indexed_at TEXT NOT NULL,
+  PRIMARY KEY (did, rkey)
+);
+CREATE INDEX atproto_indexed_links_did_position_idx ON atproto_indexed_links(did, position, rkey);
+
+CREATE TABLE atproto_jetstream_state (
+  name TEXT PRIMARY KEY,
+  cursor_us INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
 
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,
@@ -257,7 +325,6 @@ CREATE TABLE media_assets (
   updated_at TEXT NOT NULL,
   UNIQUE(user_id, slot)
 );
-
 CREATE INDEX media_assets_user_idx ON media_assets(user_id);
 
 CREATE TABLE auth_challenges (
@@ -269,7 +336,6 @@ CREATE TABLE auth_challenges (
   consumed_at TEXT,
   created_at TEXT NOT NULL
 );
-
 CREATE INDEX auth_challenges_email_idx ON auth_challenges(email, created_at);
 CREATE INDEX auth_challenges_expires_idx ON auth_challenges(expires_at);
 
@@ -280,6 +346,5 @@ CREATE TABLE sessions (
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
-
 CREATE INDEX sessions_user_idx ON sessions(user_id);
 CREATE INDEX sessions_expires_idx ON sessions(expires_at);
