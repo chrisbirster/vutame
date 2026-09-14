@@ -30,7 +30,7 @@ Profile-view events are currently recorded at the origin HTML boundary. The prof
 - [x] Keep the dashboard aggregate-only; do not expose stored visitor hashes or event-level visitor data.
 - [x] Exclude known bots from creator metrics by default.
 - [x] Add SQLite, authenticated HTTP, and Turso-engine coverage for dashboard behavior.
-- [ ] Exact-head CI and Docker green; merge into `dev`.
+- [x] Exact-head CI and Docker green; ready to merge into `dev`.
 
 Daily visitor approximation uses `HMAC(secret, creator ID + UTC day + client IP)` and stores only a truncated encoded digest. On Fly.io, the request path accepts a syntactically valid platform `Fly-Client-IP`; otherwise it falls back to the socket remote address and deliberately ignores generic forwarding headers. Because the token rotates each UTC day, range-level `unique_visitors` is the sum of daily unique counts, not a claim that Vutame recognizes the same person across multiple days.
 
