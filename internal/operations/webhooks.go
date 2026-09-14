@@ -6,7 +6,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/tls"
-	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -14,8 +13,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/netip"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -190,7 +187,6 @@ func (s *Store) DispatchPending(ctx context.Context, limit int) error {
 	client := safeWebhookClient()
 	for _, item := range items {
 		if err := s.deliver(ctx, client, item); err != nil {
-			// Delivery state is persisted by deliver; keep processing independent targets.
 			continue
 		}
 	}
@@ -271,9 +267,9 @@ func (s *Store) RunWebhookWorker(ctx context.Context, interval time.Duration) {
 func safeWebhookClient() *http.Client {
 	dialer := &net.Dialer{Timeout: 4 * time.Second}
 	transport := &http.Transport{
-		Proxy: nil,
-		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-		TLSHandshakeTimeout: 4 * time.Second,
+		Proxy:                 nil,
+		TLSClientConfig:       &tls.Config{MinVersion: tls.VersionTLS12},
+		TLSHandshakeTimeout:   4 * time.Second,
 		ResponseHeaderTimeout: 5 * time.Second,
 		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 			host, port, err := net.SplitHostPort(address)
@@ -294,10 +290,8 @@ func safeWebhookClient() *http.Client {
 		},
 	}
 	client := &http.Client{Transport: transport, Timeout: 8 * time.Second}
-	redirects := 0
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		redirects++
-		if redirects > 3 {
+		if len(via) >= 3 {
 			return errors.New("too many webhook redirects")
 		}
 		if _, err := ValidateWebhookURL(req.URL.String()); err != nil {
@@ -320,7 +314,3 @@ func minInt(left, right int) int {
 	}
 	return right
 }
-
-var _ = sql.ErrNoRows
-var _ = strconv.IntSize
-var _ netip.Addr
