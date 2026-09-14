@@ -14,6 +14,7 @@ import (
 
 	"github.com/chrisbirster/vutame/internal/activity"
 	"github.com/chrisbirster/vutame/internal/analytics"
+	"github.com/chrisbirster/vutame/internal/atproto"
 	"github.com/chrisbirster/vutame/internal/auth"
 	datastore "github.com/chrisbirster/vutame/internal/database"
 	"github.com/chrisbirster/vutame/internal/growth"
@@ -32,6 +33,8 @@ func main() {
 
 	port := envString("PORT", "8080")
 	cookieSecure := envString("VUTAME_COOKIE_SECURE", "1") != "0"
+	marketingOrigin := strings.TrimRight(envString("VUTAME_MARKETING_ORIGIN", "https://vutame.com"), "/")
+	profileOrigin := strings.TrimRight(envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"), "/")
 
 	databaseRuntime, err := openDatabaseRuntime(ctx)
 	if err != nil {
@@ -89,6 +92,11 @@ func main() {
 		slog.Error("open activity store", "error", err)
 		os.Exit(1)
 	}
+	atprotoStore, err := openATProtoStore(databaseRuntime, marketingOrigin)
+	if err != nil {
+		slog.Error("open AT Protocol store", "error", err)
+		os.Exit(1)
+	}
 	activityStore = operations.WrapActivityStore(activityStore, operationsStore)
 	editor = activity.NewRecordingEditor(editor, activityStore)
 	if operationsStore != nil {
@@ -98,8 +106,8 @@ func main() {
 	server := &http.Server{
 		Addr: ":" + port,
 		Handler: httpapi.New(webapp.Handler(), profiles, httpapi.Options{
-			MarketingOrigin: envString("VUTAME_MARKETING_ORIGIN", "https://vutame.com"),
-			ProfileOrigin:   envString("VUTAME_PROFILE_ORIGIN", "https://vuta.me"),
+			MarketingOrigin: marketingOrigin,
+			ProfileOrigin:   profileOrigin,
 			Auth:            authService,
 			Editor:          editor,
 			Media:           mediaService,
@@ -109,6 +117,7 @@ func main() {
 			Growth:          growthService,
 			Operations:      operationsStore,
 			Safety:          safetyStore,
+			ATProto:         atprotoStore,
 			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -139,6 +148,7 @@ func main() {
 		"growth_enabled", growthService != nil,
 		"operations_enabled", operationsStore != nil,
 		"safety_enabled", safetyStore != nil,
+		"atproto_enabled", atprotoStore != nil,
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
@@ -231,6 +241,35 @@ func openOperationsStore(runtime *datastore.Runtime) (*operations.Store, error) 
 		return nil, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when creator operations are enabled")
 	}
 	return operations.NewStore(runtime.DB, secret)
+}
+
+func openATProtoStore(runtime *datastore.Runtime, marketingOrigin string) (*atproto.Store, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	environment := strings.ToLower(envString("VUTAME_ENV", "development"))
+	allowHTTP := envString("VUTAME_ATPROTO_ALLOW_HTTP", "0") == "1"
+	if environment == "production" && allowHTTP {
+		return nil, errors.New("VUTAME_ATPROTO_ALLOW_HTTP is development-only")
+	}
+	secretValue := strings.TrimSpace(os.Getenv("VUTAME_ATPROTO_SECRET"))
+	if secretValue == "" {
+		secretValue = strings.TrimSpace(os.Getenv("VUTAME_AUTH_SECRET"))
+	}
+	secret := []byte(secretValue)
+	if len(secret) < 32 {
+		return nil, errors.New("VUTAME_ATPROTO_SECRET or VUTAME_AUTH_SECRET must be at least 32 bytes when AT Protocol is enabled")
+	}
+	marketingOrigin = strings.TrimRight(strings.TrimSpace(marketingOrigin), "/")
+	return atproto.NewStore(runtime.DB, secret, atproto.Config{
+		ClientID:     envString("VUTAME_ATPROTO_CLIENT_ID", marketingOrigin+"/oauth-client-metadata.json"),
+		RedirectURI:  envString("VUTAME_ATPROTO_REDIRECT_URI", marketingOrigin+"/api/v1/me/atproto/oauth/callback"),
+		Scope:        strings.TrimSpace(os.Getenv("VUTAME_ATPROTO_SCOPE")),
+		AllowHTTP:    allowHTTP,
+		JetstreamURL: strings.TrimSpace(os.Getenv("VUTAME_ATPROTO_JETSTREAM_URL")),
+		ClientName:   "Vutame",
+		MarketingURL: marketingOrigin,
+	})
 }
 
 func openSafetyStore(runtime *datastore.Runtime) (safety.Store, error) {
