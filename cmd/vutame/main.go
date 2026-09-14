@@ -16,6 +16,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/analytics"
 	"github.com/chrisbirster/vutame/internal/auth"
 	datastore "github.com/chrisbirster/vutame/internal/database"
+	"github.com/chrisbirster/vutame/internal/growth"
 	"github.com/chrisbirster/vutame/internal/httpapi"
 	"github.com/chrisbirster/vutame/internal/media"
 	"github.com/chrisbirster/vutame/internal/profile"
@@ -62,6 +63,11 @@ func main() {
 		slog.Error("open analytics service", "error", err)
 		os.Exit(1)
 	}
+	growthService, err := openGrowthService(databaseRuntime)
+	if err != nil {
+		slog.Error("open growth service", "error", err)
+		os.Exit(1)
+	}
 	safetyStore, err := openSafetyStore(databaseRuntime)
 	if err != nil {
 		slog.Error("open safety store", "error", err)
@@ -90,6 +96,7 @@ func main() {
 			Social:          socialStore,
 			Activity:        activityStore,
 			Analytics:       analyticsService,
+			Growth:          growthService,
 			Safety:          safetyStore,
 			CookieSecure:    cookieSecure,
 		}),
@@ -118,6 +125,7 @@ func main() {
 		"social_enabled", socialStore != nil,
 		"activity_enabled", activityStore != nil,
 		"analytics_enabled", analyticsService != nil,
+		"growth_enabled", growthService != nil,
 		"safety_enabled", safetyStore != nil,
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -193,6 +201,13 @@ func openAnalyticsService(runtime *datastore.Runtime) (*analytics.Service, error
 		return nil, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when analytics is enabled")
 	}
 	return analytics.NewService(runtime.DB, secret)
+}
+
+func openGrowthService(runtime *datastore.Runtime) (*growth.Service, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	return growth.NewService(runtime.DB)
 }
 
 func openSafetyStore(runtime *datastore.Runtime) (safety.Store, error) {
