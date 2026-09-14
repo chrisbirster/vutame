@@ -143,6 +143,7 @@ export function AnalyticsPage() {
                 </div>
 
                 <div {...sx(styles.stack)}>
+                  <BreakdownPanel title="Campaigns" subtitle="Inbound profile views" items={data().campaigns} />
                   <BreakdownPanel title="Referrers" subtitle="Host only" items={data().referrers} />
                   <BreakdownPanel title="Devices" subtitle="Coarse class" items={data().devices} />
                 </div>
@@ -150,7 +151,7 @@ export function AnalyticsPage() {
 
               <div {...sx(styles.privacy)}>
                 <strong>Privacy model:</strong> Vutame does not store raw visitor IPs, raw user-agent strings, or full referrer URLs.
-                Daily visitor tokens are creator-scoped and rotate each UTC day, so the same visitor cannot be joined across creators or reliably tracked across days from analytics storage.
+                Daily visitor tokens are creator-scoped and rotate each UTC day. Campaign attribution stores only a bounded campaign label from inbound profile URLs.
               </div>
             </>
           )}
