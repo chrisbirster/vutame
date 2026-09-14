@@ -2,6 +2,7 @@ import { For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 import type { Link, Profile } from "./api";
 import { linkKindMeta } from "./link-kinds";
+import { PublicContactCapture } from "./public-contact";
 import { profileSurfaceStyles as styles } from "./profile-surface.stylex";
 
 const sx = stylex.attrs;
@@ -104,6 +105,9 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
             }}
           </For>
         </div>
+      </Show>
+      <Show when={!props.preview}>
+        <PublicContactCapture handle={props.profile.handle} />
       </Show>
       <a {...sx(styles.badge, theme().bio)} href={props.preview ? undefined : "/"} aria-disabled={props.preview ? "true" : undefined}>
         made on vutame
