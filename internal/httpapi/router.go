@@ -12,6 +12,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/growth"
 	"github.com/chrisbirster/vutame/internal/linkpreview"
 	"github.com/chrisbirster/vutame/internal/media"
+	"github.com/chrisbirster/vutame/internal/operations"
 	"github.com/chrisbirster/vutame/internal/profile"
 	"github.com/chrisbirster/vutame/internal/ratelimit"
 	"github.com/chrisbirster/vutame/internal/safety"
@@ -29,6 +30,7 @@ type Options struct {
 	Activity        activity.Store
 	Analytics       *analytics.Service
 	Growth          *growth.Service
+	Operations      *operations.Store
 	Safety          safety.Store
 	Limiter         ratelimit.Gate
 	CookieSecure    bool
@@ -99,6 +101,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	registerSafetyRoutes(mux, options)
 	registerAnalyticsRoutes(mux, profiles, options)
 	registerGrowthRoutes(mux, options)
+	registerOperationsRoutes(mux, options)
 	registerProfileUtilityRoutes(mux, profiles, options)
 	mux.Handle("/", profileHTMLHandler(web, profiles, options))
 	return mux
