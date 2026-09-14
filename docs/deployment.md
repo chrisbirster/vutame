@@ -69,6 +69,37 @@ VUTAME_AUTH_EMAIL_FROM='Vutame <login@vutame.com>'
 
 An Amazon SES SMTP endpoint and SES SMTP credentials can be supplied through the same variables. `VUTAME_AUTH_LOG_CODES=1` is local-development-only and is rejected when secure cookies are enabled.
 
+## AT Protocol identity linking
+
+M5 adds optional AT Protocol OAuth identity linking. Ordinary Vutame accounts and public profiles continue to work without an AT identity.
+
+The hosted defaults are derived from `VUTAME_MARKETING_ORIGIN`:
+
+```bash
+VUTAME_ATPROTO_CLIENT_ID='https://vutame.com/oauth-client-metadata.json'
+VUTAME_ATPROTO_REDIRECT_URI='https://vutame.com/api/v1/me/atproto/oauth/callback'
+```
+
+Both values can be overridden explicitly. `VUTAME_ATPROTO_SCOPE` is optional; when omitted the application requests the built-in `atproto` plus Vutame profile/link repository scopes.
+
+OAuth state stores only a hash of the browser-visible state value. PKCE verifiers, DPoP private keys, access tokens, and refresh tokens are encrypted before database storage. Production may use a dedicated encryption key:
+
+```bash
+VUTAME_ATPROTO_SECRET='<at-least-32-random-bytes>'
+```
+
+When `VUTAME_ATPROTO_SECRET` is absent, the stable `VUTAME_AUTH_SECRET` is used as the encryption key. Do not rotate either key without an explicit credential re-encryption/relinking plan.
+
+AT Protocol network resolution is HTTPS-only in hosted environments and rejects private/link-local destinations. Local integration testing may explicitly enable loopback HTTP:
+
+```bash
+VUTAME_ATPROTO_ALLOW_HTTP=1
+```
+
+`VUTAME_ATPROTO_ALLOW_HTTP=1` is rejected when `VUTAME_ENV=production`. `VUTAME_ATPROTO_JETSTREAM_URL` is reserved for the later M5 ingestion/AppView slice.
+
+The public OAuth client metadata document is served at `/oauth-client-metadata.json`. Keep the configured client ID URL publicly reachable over HTTPS before testing authorization against real PDS providers.
+
 ## Managed media
 
 Avatar uploads are optional and are enabled when `VUTAME_MEDIA_DIR` is configured:
@@ -118,11 +149,13 @@ The Turso Go driver uses prebuilt platform libraries through `purego`, so the ap
 
 1. Provision the Turso database and access token.
 2. Run the Atlas production plan and inspect it.
-3. Apply the Atlas schema.
-4. Configure Vutame database/auth/SMTP/domain secrets.
-5. If managed avatar uploads are enabled, mount persistent media storage and set `VUTAME_MEDIA_DIR`.
-6. Deploy the container.
-7. Verify `/api/v1/healthz` and sign-in.
-8. Claim a test handle, edit it, upload/replace/delete an avatar if media is enabled, restart the service, and confirm the profile and current avatar remain available.
+3. Apply the Atlas schema, including all AT Protocol tables before enabling M5 builds.
+4. Configure Vutame database/auth/SMTP/domain secrets and, when desired, `VUTAME_ATPROTO_SECRET`.
+5. Confirm `VUTAME_MARKETING_ORIGIN` matches the public origin used by the OAuth client metadata and callback URLs.
+6. If managed avatar uploads are enabled, mount persistent media storage and set `VUTAME_MEDIA_DIR`.
+7. Deploy the container.
+8. Verify `/api/v1/healthz` and `/oauth-client-metadata.json`, then sign in.
+9. Claim a test handle and exercise AT identity resolution/link/unlink before enabling publication preferences broadly.
+10. Edit a profile, upload/replace/delete an avatar if media is enabled, restart the service, and confirm durable state remains available.
 
 Turso Database is pre-1.0. Keep provider backups/recovery enabled and test restoration before public beta. Include the configured media volume/object store in backup and recovery exercises because database metadata alone cannot recreate uploaded image bytes.
