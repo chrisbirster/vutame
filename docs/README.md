@@ -10,8 +10,9 @@ This directory is the source of truth for product and engineering decisions.
 - [M1 — Accounts and persistence](milestones/m1-accounts-persistence.md) — completed durable storage, authentication, handle claiming, link CRUD, and production persistence.
 - [M2 — Profile design](milestones/m2-profile-design.md) — completed themes, media, rich/featured/scheduled links, sharing, SEO, import, and accessibility/performance work.
 - [M3 — Discovery and social graph](milestones/m3-discovery-social-graph.md) — completed follows, discovery/search, activity feeds, cursor pagination, and safety/privacy rollout controls.
-- [M4 — Analytics, growth, and creator tools](milestones/m4-analytics-growth.md) — active work on privacy-conscious analytics ingestion, dashboards, campaigns, and creator operations.
+- [M4 — Analytics, growth, and creator tools](milestones/m4-analytics-growth.md) — completed privacy-conscious analytics, growth blocks, retention, custom domains, export, scoped tokens, and signed webhooks.
+- M5 — AT Protocol identity and portability — current implementation milestone.
 
-**Current roadmap milestone: M4 — Analytics, growth, and creator tools.**
+**Current roadmap milestone: M5 — AT Protocol identity and portability.**
 
 When implementation and documentation disagree, update the documentation in the same pull request that changes the architecture.
