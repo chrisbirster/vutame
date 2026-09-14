@@ -6,6 +6,7 @@ import {
   NotFoundPage,
   ProfilePage,
 } from "./pages";
+import { AnalyticsPage } from "./analytics-page";
 import { DiscoverPage } from "./discover-page";
 import { EditorPage, SettingsPage } from "./editor";
 import { FeedPage } from "./feed";
@@ -19,6 +20,7 @@ export const Router = createRouter({
     { path: "/", component: HomePage },
     { path: "/discover", component: DiscoverPage },
     { path: "/feed", component: FeedPage },
+    { path: "/analytics", component: AnalyticsPage },
     { path: "/create", component: EditorPage },
     { path: "/settings", component: SettingsPage },
     { path: "/settings/import", component: LinkToolsPage },

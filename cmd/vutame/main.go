@@ -188,7 +188,11 @@ func openAnalyticsService(runtime *datastore.Runtime) (*analytics.Service, error
 	if runtime == nil || runtime.DB == nil {
 		return nil, nil
 	}
-	return analytics.NewService(runtime.DB)
+	secret := []byte(strings.TrimSpace(os.Getenv("VUTAME_AUTH_SECRET")))
+	if len(secret) < 32 {
+		return nil, errors.New("VUTAME_AUTH_SECRET must be at least 32 bytes when analytics is enabled")
+	}
+	return analytics.NewService(runtime.DB, secret)
 }
 
 func openSafetyStore(runtime *datastore.Runtime) (safety.Store, error) {

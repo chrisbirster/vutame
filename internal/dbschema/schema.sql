@@ -129,6 +129,7 @@ CREATE TABLE analytics_events (
   user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   link_id TEXT REFERENCES links(id) ON DELETE SET NULL,
   kind TEXT NOT NULL CHECK (kind IN ('profile_view', 'link_click')),
+  visitor_hash TEXT NOT NULL DEFAULT '',
   referrer_host TEXT NOT NULL DEFAULT '',
   device_class TEXT NOT NULL DEFAULT 'unknown' CHECK (device_class IN ('desktop', 'mobile', 'tablet', 'unknown')),
   created_at TEXT NOT NULL
@@ -137,6 +138,7 @@ CREATE TABLE analytics_events (
 CREATE INDEX analytics_events_user_created_idx ON analytics_events(user_id, created_at DESC, id DESC);
 CREATE INDEX analytics_events_link_created_idx ON analytics_events(link_id, created_at DESC, id DESC);
 CREATE INDEX analytics_events_kind_created_idx ON analytics_events(kind, created_at DESC, id DESC);
+CREATE INDEX analytics_events_user_kind_visitor_idx ON analytics_events(user_id, kind, visitor_hash, created_at DESC);
 
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,

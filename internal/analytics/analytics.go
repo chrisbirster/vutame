@@ -1,6 +1,8 @@
 package analytics
 
 import (
+	"net"
+	"net/netip"
 	"net/url"
 	"strings"
 )
@@ -13,12 +15,51 @@ const (
 	DeviceMobile  = "mobile"
 	DeviceTablet  = "tablet"
 	DeviceUnknown = "unknown"
+
+	DefaultDashboardDays = 30
+	MaxDashboardDays     = 90
 )
 
 type Metadata struct {
+	VisitorHash  string
 	ReferrerHost string
 	DeviceClass  string
 	Bot          bool
+}
+
+type Summary struct {
+	ProfileViews   int `json:"profile_views"`
+	LinkClicks     int `json:"link_clicks"`
+	UniqueVisitors int `json:"unique_visitors"`
+}
+
+type DailyPoint struct {
+	Date           string `json:"date"`
+	ProfileViews   int    `json:"profile_views"`
+	LinkClicks     int    `json:"link_clicks"`
+	UniqueVisitors int    `json:"unique_visitors"`
+}
+
+type LinkMetric struct {
+	LinkID string `json:"link_id"`
+	Label  string `json:"label"`
+	Clicks int    `json:"clicks"`
+}
+
+type Breakdown struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type Dashboard struct {
+	Days      int         `json:"days"`
+	StartDate string      `json:"start_date"`
+	EndDate   string      `json:"end_date"`
+	Summary   Summary     `json:"summary"`
+	Series    []DailyPoint `json:"series"`
+	TopLinks  []LinkMetric `json:"top_links"`
+	Referrers []Breakdown `json:"referrers"`
+	Devices   []Breakdown `json:"devices"`
 }
 
 func MetadataFromHeaders(referrer, userAgent string) Metadata {
@@ -27,6 +68,34 @@ func MetadataFromHeaders(referrer, userAgent string) Metadata {
 		DeviceClass:  deviceClass(userAgent),
 		Bot:          isBot(userAgent),
 	}
+}
+
+func NormalizeDashboardDays(days int) int {
+	if days <= 0 {
+		return DefaultDashboardDays
+	}
+	if days > MaxDashboardDays {
+		return MaxDashboardDays
+	}
+	return days
+}
+
+// ClientIP accepts Fly.io's platform-provided client IP when it is a valid
+// address, otherwise it falls back to the socket remote address. Generic
+// forwarding headers are deliberately ignored because clients can spoof them.
+func ClientIP(flyClientIP, remoteAddr string) string {
+	if address, err := netip.ParseAddr(strings.TrimSpace(flyClientIP)); err == nil {
+		return address.Unmap().String()
+	}
+	host := strings.TrimSpace(remoteAddr)
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		host = parsedHost
+	}
+	address, err := netip.ParseAddr(strings.Trim(host, "[]"))
+	if err != nil {
+		return ""
+	}
+	return address.Unmap().String()
 }
 
 func referrerHost(value string) string {
