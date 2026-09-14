@@ -25,6 +25,11 @@ export function ATProtoPage() {
   const [error, setError] = createSignal("");
   const [message, setMessage] = createSignal("");
 
+  const linkedAccount = () => {
+    const state = accountState();
+    return state?.linked ? state.account : undefined;
+  };
+
   void bootstrap();
 
   async function bootstrap() {
@@ -121,7 +126,7 @@ export function ATProtoPage() {
         <Show when={session()?.authenticated} fallback={<div {...sx(styles.panel)}>Sign in to link an AT Protocol identity.</div>}>
           <Show when={accountState() !== undefined} fallback={<div {...sx(styles.panel)}>Loading linked identity…</div>}>
             <Show
-              when={accountState()?.linked ? accountState() : undefined}
+              when={linkedAccount()}
               fallback={
                 <div {...sx(styles.grid)}>
                   <section {...sx(styles.panel, styles.wide)}>
@@ -158,15 +163,15 @@ export function ATProtoPage() {
                 </div>
               }
             >
-              {(state) => (
+              {(account) => (
                 <div {...sx(styles.grid)}>
                   <section {...sx(styles.panel, styles.wide)}>
                     <h2 {...sx(styles.panelTitle)}>Linked identity</h2>
                     <div {...sx(styles.contact)}>
                       <div>
-                        <strong>{state().linked ? state().account.handle || state().account.did : ""}</strong>
-                        <div {...sx(styles.muted)}>{state().linked ? state().account.did : ""}</div>
-                        <div {...sx(styles.muted)}>PDS · {state().linked ? state().account.pds_url : ""}</div>
+                        <strong>{account().handle || account().did}</strong>
+                        <div {...sx(styles.muted)}>{account().did}</div>
+                        <div {...sx(styles.muted)}>PDS · {account().pds_url}</div>
                       </div>
                     </div>
                     <p {...sx(styles.help)}>
