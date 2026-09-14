@@ -31,6 +31,7 @@ export type AnalyticsDashboard = {
   top_links: AnalyticsLinkMetric[];
   referrers: AnalyticsBreakdown[];
   devices: AnalyticsBreakdown[];
+  campaigns: AnalyticsBreakdown[];
 };
 
 export class AnalyticsAPIError extends Error {

@@ -130,6 +130,7 @@ CREATE TABLE analytics_events (
   link_id TEXT REFERENCES links(id) ON DELETE SET NULL,
   kind TEXT NOT NULL CHECK (kind IN ('profile_view', 'link_click')),
   visitor_hash TEXT NOT NULL DEFAULT '',
+  campaign TEXT NOT NULL DEFAULT '',
   referrer_host TEXT NOT NULL DEFAULT '',
   device_class TEXT NOT NULL DEFAULT 'unknown' CHECK (device_class IN ('desktop', 'mobile', 'tablet', 'unknown')),
   created_at TEXT NOT NULL
@@ -139,6 +140,36 @@ CREATE INDEX analytics_events_user_created_idx ON analytics_events(user_id, crea
 CREATE INDEX analytics_events_link_created_idx ON analytics_events(link_id, created_at DESC, id DESC);
 CREATE INDEX analytics_events_kind_created_idx ON analytics_events(kind, created_at DESC, id DESC);
 CREATE INDEX analytics_events_user_kind_visitor_idx ON analytics_events(user_id, kind, visitor_hash, created_at DESC);
+CREATE INDEX analytics_events_user_campaign_idx ON analytics_events(user_id, campaign, created_at DESC);
+
+CREATE TABLE creator_data_settings (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  analytics_retention_days INTEGER NOT NULL DEFAULT 90 CHECK (analytics_retention_days IN (30, 90, 365)),
+  contact_retention_days INTEGER NOT NULL DEFAULT 365 CHECK (contact_retention_days IN (30, 90, 365)),
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE contact_blocks (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+  heading TEXT NOT NULL DEFAULT 'Stay in touch',
+  description TEXT NOT NULL DEFAULT '',
+  consent_text TEXT NOT NULL DEFAULT 'I agree to share my email with this creator for the purpose described above.',
+  button_label TEXT NOT NULL DEFAULT 'Sign up',
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE contact_submissions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  email TEXT NOT NULL COLLATE NOCASE,
+  consent_text TEXT NOT NULL,
+  campaign TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX contact_submissions_user_created_idx ON contact_submissions(user_id, created_at DESC, id DESC);
+CREATE INDEX contact_submissions_user_email_idx ON contact_submissions(user_id, email, created_at DESC);
 
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,

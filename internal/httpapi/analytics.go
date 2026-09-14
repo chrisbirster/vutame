@@ -80,5 +80,6 @@ func requestAnalyticsMetadata(r *http.Request, userID string, service *analytics
 	metadata := analytics.MetadataFromHeaders(r.Referer(), r.UserAgent())
 	clientIP := analytics.ClientIP(r.Header.Get("Fly-Client-IP"), r.RemoteAddr)
 	metadata.VisitorHash = service.VisitorToken(userID, clientIP, time.Now().UTC())
+	metadata.Campaign = analytics.NormalizeCampaign(r.URL.Query().Get("utm_campaign"))
 	return metadata
 }
