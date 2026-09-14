@@ -7,6 +7,7 @@ import {
   ProfilePage,
 } from "./pages";
 import { AnalyticsPage } from "./analytics-page";
+import { ATProtoPage } from "./atproto-page";
 import { DiscoverPage } from "./discover-page";
 import { EditorPage, SettingsPage } from "./editor";
 import { FeedPage } from "./feed";
@@ -30,6 +31,7 @@ export const Router = createRouter({
     { path: "/settings/import", component: LinkToolsPage },
     { path: "/settings/discovery", component: SocialSettingsPage },
     { path: "/settings/safety", component: SafetySettingsPage },
+    { path: "/settings/atproto", component: ATProtoPage },
     { path: "/network/:handle/followers", component: FollowersPage },
     { path: "/network/:handle/following", component: FollowingPage },
     { path: "/signin", component: SignInPage },
