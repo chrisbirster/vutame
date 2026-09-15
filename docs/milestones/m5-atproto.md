@@ -1,6 +1,6 @@
 # M5 — AT Protocol identity and portability
 
-Status: **in progress**
+Status: **complete**
 
 Goal: make Vutame identities portable and interoperable with the AT Protocol while keeping the normal Vutame signup and editing experience independent of federation.
 
@@ -32,7 +32,7 @@ Vutame is **ATProto-native, not ATProto-required**. A linked DID is an additiona
 - [x] Enforce `vutame_wins` and `pds_wins` explicitly; `pds_wins` preserves remote divergence and reports it rather than overwriting it.
 - [x] Add manual sync/status APIs and creator UI with managed-record CIDs and conflict reporting.
 - [x] Add protocol-level interoperability tests against AT-compatible DPoP/XRPC behavior.
-- [x] Exact-head CI and Docker green; ready to merge Slice 2 into `dev`.
+- [x] Exact-head CI and Docker green; merged into `dev` as PR #28.
 
 Publication remains opt-in. Enabling publication does not silently write records; creators use **Sync now** to make the current Vutame public profile state portable. Vutame-managed link record keys are deterministic hashes of stable internal link IDs, so label/URL edits do not create duplicate PDS records.
 
@@ -40,21 +40,26 @@ Conflict semantics are deliberately asymmetric and observable. `vutame_wins` tre
 
 ## Slice 3 — ingestion and AppView
 
-- [ ] Consume Jetstream/firehose events for Vutame Lexicons.
-- [ ] Persist a durable ingestion cursor.
+- [x] Consume Jetstream events for Vutame Lexicons with a hardened WebSocket client.
+- [x] Persist a monotonic durable ingestion cursor and reconnect from that cursor.
 - [x] Share strict portable profile/link record validation and AppView storage with outbound sync.
-- [x] Build the core AppView read model for portable Vutame identities.
-- [ ] Resolve/display linked AT handles and DIDs in public Vutame surfaces.
-- [ ] Include indexed AT identities in appropriate discovery/search surfaces without duplicating linked local creators.
-- [ ] Handle record deletion, account migration, handle changes, malformed records, and replay safely.
+- [x] Build the AppView read model for portable Vutame identities.
+- [x] Resolve/display linked AT DIDs and current verified handles in public Vutame surfaces.
+- [x] Include indexed portable identities in discovery/search without duplicating locally linked DIDs.
+- [x] Handle record deletion, account deactivation/takedown, mutable handle refresh, malformed records, and replay safely.
+- [x] Render portable profiles at `/at/:did` with the shared Vutame profile surface while sending portable links directly to their record URL.
+- [x] Cover ingestion/AppView behavior on SQLite and the Turso engine.
 
 ## Slice 4 — portability closeout
 
-- [ ] Publish Lexicon source and interoperability documentation.
-- [ ] Document what lives only in Vutame versus what can live in a user's PDS.
-- [ ] Document unlinking, token revocation expectations, conflict rules, and export/migration behavior.
-- [ ] Add end-to-end portability tests covering authorize → publish → ingest → render.
-- [ ] Close M5 and advance the roadmap to M6.
+- [x] Publish Lexicon source and interoperability documentation.
+- [x] Document what lives only in Vutame versus what can live in a user's PDS.
+- [x] Document unlinking, token revocation expectations, conflict rules, and export/migration behavior.
+- [x] Add end-to-end portability coverage for authorize → publish → ingest → AppView render model.
+- [x] Exact-head application CI and Docker green for the final M5 implementation.
+- [x] Close M5 and advance the roadmap to M6.
+
+See [`../atproto-portability.md`](../atproto-portability.md) for the interoperability and migration contract.
 
 ## Identity invariants
 
@@ -66,8 +71,10 @@ Conflict semantics are deliberately asymmetric and observable. `vutame_wins` tre
 - Raw access tokens, refresh tokens, PKCE verifiers, and DPoP private keys are never stored unencrypted.
 - OAuth refresh tokens are treated as single-use and refreshed under a process mutex to prevent concurrent reuse.
 - PDS requests use DPoP-bound access tokens and require server-provided DPoP nonces.
+- Jetstream ingestion is at-least-once/replay-safe and indexes only validated Vutame Lexicon records.
+- Portable records cannot self-assert Vutame verification.
 - Linking AT Protocol identity remains optional; ordinary Vutame profiles continue to work without it.
 
 ## M5 exit criteria
 
-An AT Protocol user can authorize Vutame, opt in to publishing Vutame profile/link records to their PDS, and have Vutame ingest, discover, and render those portable records while preserving clear conflict and identity semantics.
+**Satisfied.** An AT Protocol user can authorize Vutame, opt in to publishing Vutame profile/link records to their PDS, and have Vutame ingest, discover, and render those portable records while preserving clear conflict and identity semantics.

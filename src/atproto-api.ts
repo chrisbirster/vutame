@@ -52,9 +52,48 @@ export type ATProtoSyncReport = {
   synced_at: string;
 };
 
+export type PortableLink = {
+  rkey: string;
+  label: string;
+  url: string;
+  kind: string;
+  thumbnail_url?: string;
+  featured: boolean;
+  position: number;
+};
+
+export type PortableProfile = {
+  did: string;
+  handle?: string;
+  display_name?: string;
+  bio?: string;
+  avatar_url?: string;
+  theme: string;
+  verified: boolean;
+  links: PortableLink[];
+  indexed_at: string;
+};
+
+export type PortableProfileResponse = {
+  profile: PortableProfile;
+  identity?: ATProtoIdentity;
+};
+
 export async function resolveATProtoIdentity(identifier: string): Promise<ATProtoIdentity> {
   const params = new URLSearchParams({ identifier: identifier.trim() });
   return requestJSON<ATProtoIdentity>(`/api/v1/atproto/resolve?${params.toString()}`);
+}
+
+export async function fetchPortableProfile(did: string): Promise<PortableProfileResponse> {
+  return requestJSON<PortableProfileResponse>(`/api/v1/atproto/profiles/${encodeURIComponent(did)}`);
+}
+
+export async function searchPortableProfiles(query = "", limit = 20): Promise<PortableProfile[]> {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("q", query.trim());
+  params.set("limit", String(limit));
+  const payload = await requestJSON<{ profiles: PortableProfile[] }>(`/api/v1/atproto/search?${params.toString()}`);
+  return payload.profiles;
 }
 
 export async function fetchATProtoAccount(): Promise<ATProtoAccountState> {

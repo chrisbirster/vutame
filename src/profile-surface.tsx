@@ -22,7 +22,12 @@ export function normalizeProfileTheme(theme: string | undefined): ProfileTheme {
     : "midnight";
 }
 
-export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
+export function ProfileSurface(props: {
+  profile: Profile;
+  preview?: boolean;
+  linkHref?: (link: Link) => string;
+  showContact?: boolean;
+}) {
   const theme = () => themeStyles(normalizeProfileTheme(props.profile.theme));
   const links = () => props.profile.links
     .filter((link) => link.is_active && linkVisibleNow(link))
@@ -33,6 +38,7 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
       return left.id.localeCompare(right.id);
     });
   const initial = () => (props.profile.display_name || props.profile.handle || "V").trim().slice(0, 1).toUpperCase();
+  const publicLinkHref = (link: Link) => props.linkHref?.(link) || `/out/${encodeURIComponent(link.id)}`;
 
   return (
     <article {...sx(styles.frame, props.preview && styles.previewFrame, theme().surface)}>
@@ -54,6 +60,9 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
       </Show>
       <h1 {...sx(styles.title, props.preview && styles.previewTitle)}>{props.profile.display_name || `@${props.profile.handle}`}</h1>
       <div {...sx(styles.handle)}>@{props.profile.handle}</div>
+      <Show when={props.profile.atproto_did && !props.preview}>
+        {(did) => <a {...sx(styles.handle)} href={`/at/${encodeURIComponent(did())}`}>AT · {did()}</a>}
+      </Show>
       <Show when={props.profile.bio}>
         <p {...sx(styles.bio, props.preview && styles.previewBio, theme().bio)}>{props.profile.bio}</p>
       </Show>
@@ -68,7 +77,7 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
               return (
                 <a
                   {...sx(styles.link, link.featured && styles.featuredLink, props.preview && styles.previewLink, theme().link)}
-                  href={props.preview ? undefined : `/out/${encodeURIComponent(link.id)}`}
+                  href={props.preview ? undefined : publicLinkHref(link)}
                   target={props.preview ? undefined : "_blank"}
                   rel={props.preview ? undefined : "noreferrer"}
                   aria-disabled={props.preview ? "true" : undefined}
@@ -106,7 +115,7 @@ export function ProfileSurface(props: { profile: Profile; preview?: boolean }) {
           </For>
         </div>
       </Show>
-      <Show when={!props.preview}>
+      <Show when={!props.preview && props.showContact !== false}>
         <PublicContactCapture handle={props.profile.handle} />
       </Show>
       <a {...sx(styles.badge, theme().bio)} href={props.preview ? undefined : "/"} aria-disabled={props.preview ? "true" : undefined}>

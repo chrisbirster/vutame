@@ -56,28 +56,27 @@ Exit criteria: **satisfied.** Creators can understand what is working and use Vu
 
 ## M5 — AT Protocol identity and portability
 
-Status: **current**
+Status: **complete**
 
 Goal: make Vutame profiles portable and interoperable without forcing federation on ordinary users.
 
-Tasks:
+Delivered:
 
-- ATProto OAuth login/linking flow.
-- DID mapping on Vutame accounts.
-- Define and publish `com.vutame.profile` Lexicon.
-- Define and publish `com.vutame.link` Lexicon.
-- Opt-in publish/sync of public records to user PDS repositories.
-- Conflict/version rules between centralized editor state and AT records.
-- Jetstream/firehose ingestion for Vutame Lexicons.
-- Vutame AppView/indexer for search and discovery.
-- Resolve AT handles/DIDs and display linked identities.
-- Portability/export documentation and interoperability tests.
+- AT Protocol OAuth linking with PKCE, PAR, DPoP, encrypted credentials, and rotating refresh tokens.
+- DID mapping and bidirectionally verified mutable handles.
+- Published `com.vutame.profile` and `com.vutame.link` Lexicons.
+- Opt-in profile/link publication to user PDS repositories with stable record keys.
+- Explicit `vutame_wins` / `pds_wins` CID-based conflict semantics and manual sync status.
+- Jetstream ingestion with a durable cursor, replay-safe indexing, deletion, and account-state handling.
+- Vutame AppView/search for portable creators without duplicating locally linked DIDs.
+- Portable profile rendering at `/at/:did` using the shared Vutame profile surface.
+- Portability/export/revocation documentation and OAuth → publish → ingest → render interoperability coverage on SQLite and Turso paths.
 
-Exit criteria: an ATProto user can authorize Vutame, publish their profile data to their PDS, and have Vutame discover/render those portable records.
+Exit criteria: **satisfied.** An AT Protocol user can authorize Vutame, publish their profile/link data to their PDS, and have Vutame ingest, discover, and render those portable records while preserving explicit identity and conflict semantics.
 
 ## M6 — Monetization and production scale
 
-Status: **next**
+Status: **current**
 
 Goal: build a sustainable hosted product around the free identity layer.
 

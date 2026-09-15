@@ -102,6 +102,9 @@ func main() {
 	if operationsStore != nil {
 		go operationsStore.RunWebhookWorker(ctx, 5*time.Second)
 	}
+	if atprotoStore != nil && atprotoStore.JetstreamEnabled() {
+		go atprotoStore.RunJetstream(ctx)
+	}
 
 	server := &http.Server{
 		Addr: ":" + port,
@@ -149,6 +152,7 @@ func main() {
 		"operations_enabled", operationsStore != nil,
 		"safety_enabled", safetyStore != nil,
 		"atproto_enabled", atprotoStore != nil,
+		"atproto_jetstream_enabled", atprotoStore != nil && atprotoStore.JetstreamEnabled(),
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
