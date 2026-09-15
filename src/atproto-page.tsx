@@ -1,14 +1,18 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 import { fetchAuthSession, type AuthSession } from "./api";
 import {
   fetchATProtoAccount,
+  fetchATProtoSyncStatus,
   resolveATProtoIdentity,
   startATProtoOAuth,
+  syncATProto,
   unlinkATProto,
   updateATProtoSettings,
   type ATProtoAccountState,
   type ATProtoIdentity,
+  type ATProtoSyncReport,
+  type ATProtoSyncStatus,
 } from "./atproto-api";
 import { growthStyles as styles } from "./growth.stylex";
 
@@ -17,6 +21,8 @@ const sx = stylex.attrs;
 export function ATProtoPage() {
   const [session, setSession] = createSignal<AuthSession>();
   const [accountState, setAccountState] = createSignal<ATProtoAccountState>();
+  const [syncStatus, setSyncStatus] = createSignal<ATProtoSyncStatus>();
+  const [syncReport, setSyncReport] = createSignal<ATProtoSyncReport>();
   const [identifier, setIdentifier] = createSignal("");
   const [resolved, setResolved] = createSignal<ATProtoIdentity>();
   const [conflictPolicy, setConflictPolicy] = createSignal<"vutame_wins" | "pds_wins">("vutame_wins");
@@ -39,6 +45,7 @@ export function ATProtoPage() {
       if (!current.authenticated) return;
       const state = await fetchATProtoAccount();
       applyAccountState(state);
+      if (state.linked) setSyncStatus(await fetchATProtoSyncStatus());
       const params = new URLSearchParams(window.location.search);
       if (params.get("linked") === "1") setMessage("AT Protocol identity linked successfully.");
       if (params.get("error") === "oauth") setError("AT Protocol authorization could not be completed. You can try linking again.");
@@ -81,7 +88,17 @@ export function ATProtoPage() {
         publish_enabled: publishEnabled(),
       });
       applyAccountState({ linked: true, account });
-      setMessage("AT Protocol preferences saved.");
+      setSyncStatus(await fetchATProtoSyncStatus());
+      setMessage("AT Protocol preferences saved. Publishing changes only when you choose Sync now.");
+    });
+  }
+
+  async function syncNow() {
+    await run(async () => {
+      const report = await syncATProto();
+      setSyncReport(report);
+      setSyncStatus(await fetchATProtoSyncStatus());
+      setMessage(`PDS sync complete: ${report.published} published, ${report.deleted} deleted, ${report.conflicts.length} conflicts.`);
     });
   }
 
@@ -90,6 +107,8 @@ export function ATProtoPage() {
       await unlinkATProto();
       applyAccountState({ linked: false });
       setResolved(undefined);
+      setSyncStatus(undefined);
+      setSyncReport(undefined);
       setMessage("AT Protocol identity unlinked from Vutame.");
     });
   }
@@ -175,7 +194,7 @@ export function ATProtoPage() {
                       </div>
                     </div>
                     <p {...sx(styles.help)}>
-                      OAuth tokens and the DPoP private key are encrypted at rest. Unlinking removes Vutame's stored OAuth credentials and DID mapping; it does not delete anything from your PDS.
+                      OAuth access/refresh tokens and the DPoP private key are encrypted at rest. Refresh tokens are rotated serially so concurrent syncs cannot reuse a single-use token.
                     </p>
                   </section>
 
@@ -186,7 +205,7 @@ export function ATProtoPage() {
                         <span {...sx(styles.label)}>CONFLICT POLICY</span>
                         <select {...sx(styles.input)} value={conflictPolicy()} onChange={(event) => setConflictPolicy(event.currentTarget.value as "vutame_wins" | "pds_wins")}>
                           <option value="vutame_wins">Vutame editor wins</option>
-                          <option value="pds_wins">PDS records win</option>
+                          <option value="pds_wins">PDS records win on divergence</option>
                         </select>
                       </label>
                       <label {...sx(styles.checkRow)}>
@@ -194,15 +213,47 @@ export function ATProtoPage() {
                         <span>Opt in to publishing public Vutame records to my PDS</span>
                       </label>
                       <p {...sx(styles.help)}>
-                        This currently stores your publication preference. PDS writes are activated in M5 Slice 2 after token refresh, record sync, and conflict handling are complete.
+                        <strong>Vutame wins</strong> overwrites remote divergence with the current Vutame editor state. <strong>PDS wins</strong> preserves an externally changed/deleted PDS record and reports a conflict instead of overwriting it.
                       </p>
                       <button {...sx(styles.button)} type="submit" disabled={busy()}>Save preferences</button>
                     </form>
                   </section>
 
                   <section {...sx(styles.panel)}>
+                    <h2 {...sx(styles.panelTitle)}>Publish to your PDS</h2>
+                    <p {...sx(styles.help)}>
+                      Sync publishes <code>com.vutame.profile/self</code> plus currently active/public <code>com.vutame.link</code> records. Disabled, future, and expired links are removed from Vutame-managed portable records.
+                    </p>
+                    <button {...sx(styles.button)} type="button" disabled={busy() || !account().publish_enabled} onClick={() => void syncNow()}>Sync now</button>
+                    <Show when={!account().publish_enabled}><p {...sx(styles.help)}>Enable publication above before syncing.</p></Show>
+                    <Show when={syncReport()?.conflicts.length}>{
+                      <div {...sx(styles.notice, styles.error)}>
+                        <strong>PDS conflicts preserved:</strong>
+                        <For each={syncReport()?.conflicts || []}>{(conflict) => <div>{conflict.collection}/{conflict.rkey} — {conflict.reason}</div>}</For>
+                      </div>
+                    }</Show>
+                  </section>
+
+                  <section {...sx(styles.panel, styles.wide)}>
+                    <h2 {...sx(styles.panelTitle)}>Managed portable records</h2>
+                    <Show when={(syncStatus()?.records.length || 0) > 0} fallback={<p {...sx(styles.help)}>No Vutame-managed PDS records have been synchronized yet.</p>}>
+                      <div {...sx(styles.contacts)}>
+                        <For each={syncStatus()?.records || []}>{(record) => (
+                          <div {...sx(styles.contact)}>
+                            <div>
+                              <strong>{record.collection}/{record.rkey}</strong>
+                              <div {...sx(styles.muted)}>CID · {record.cid || "unknown"}</div>
+                              <div {...sx(styles.muted)}>Synced · {new Date(record.synced_at).toLocaleString()}</div>
+                            </div>
+                          </div>
+                        )}</For>
+                      </div>
+                    </Show>
+                  </section>
+
+                  <section {...sx(styles.panel)}>
                     <h2 {...sx(styles.panelTitle)}>Disconnect</h2>
-                    <p {...sx(styles.help)}>Keep your Vutame profile while removing the linked AT identity and Vutame's stored OAuth credentials.</p>
+                    <p {...sx(styles.help)}>Keep your Vutame profile while removing the linked AT identity and Vutame's stored OAuth credentials. Existing records in your PDS are left in your control.</p>
                     <button {...sx(styles.button)} type="button" disabled={busy()} onClick={() => void unlink()}>Unlink AT Protocol</button>
                   </section>
                 </div>
