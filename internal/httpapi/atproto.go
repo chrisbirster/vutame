@@ -165,7 +165,7 @@ func atprotoError(w http.ResponseWriter, err error) bool {
 	case errors.Is(err, atproto.ErrPublishingDisabled):
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "enable AT Protocol publication before syncing"})
 	case errors.Is(err, atproto.ErrConflict):
-		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 	case errors.Is(err, atproto.ErrNotLinked):
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "claim a Vuta or link an AT Protocol identity first"})
 	case errors.Is(err, atproto.ErrIndexedNotFound):
