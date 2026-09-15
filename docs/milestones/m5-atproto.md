@@ -20,25 +20,30 @@ Vutame is **ATProto-native, not ATProto-required**. A linked DID is an additiona
 - [x] Wire AT Protocol configuration into the Go runtime.
 - [x] Add a creator-facing AT Protocol settings workspace.
 - [x] Cover identity/OAuth invariants on SQLite and the Turso engine.
-- [ ] Exact-head CI and Docker build green; merge Slice 1 into `dev`.
+- [x] Exact-head CI and Docker build green; merged into `dev` as PR #26.
 
 ## Slice 2 — PDS publication and conflict rules
 
-- [ ] Refresh DPoP-bound access tokens safely.
-- [ ] Publish the creator profile as `com.vutame.profile/self` when publication is enabled.
-- [ ] Publish active public links as `com.vutame.link` records using stable record keys.
-- [ ] Delete or tombstone remote link records when publication requires it.
-- [ ] Persist CID/payload/sync metadata for each published record.
-- [ ] Enforce `vutame_wins` and `pds_wins` conflict policies explicitly.
-- [ ] Add manual sync/status APIs and creator UI.
-- [ ] Add interoperability tests against AT-compatible XRPC behavior.
+- [x] Refresh DPoP-bound access tokens safely with serialized single-use refresh-token rotation.
+- [x] Publish the creator profile as `com.vutame.profile/self` when publication is enabled.
+- [x] Publish currently active/public links as `com.vutame.link` records using stable record keys.
+- [x] Delete Vutame-managed remote link records when the local link is no longer public under the active conflict policy.
+- [x] Persist CID, canonical payload, local update time, and sync metadata for each managed record.
+- [x] Enforce `vutame_wins` and `pds_wins` explicitly; `pds_wins` preserves remote divergence and reports it rather than overwriting it.
+- [x] Add manual sync/status APIs and creator UI with managed-record CIDs and conflict reporting.
+- [x] Add protocol-level interoperability tests against AT-compatible DPoP/XRPC behavior.
+- [x] Exact-head CI and Docker green; ready to merge Slice 2 into `dev`.
+
+Publication remains opt-in. Enabling publication does not silently write records; creators use **Sync now** to make the current Vutame public profile state portable. Vutame-managed link record keys are deterministic hashes of stable internal link IDs, so label/URL edits do not create duplicate PDS records.
+
+Conflict semantics are deliberately asymmetric and observable. `vutame_wins` treats the centralized editor as authoritative and rewrites managed PDS records. `pds_wins` detects a CID change/deletion since the previous Vutame sync, preserves the remote outcome, records the new remote baseline, and reports the conflict to the creator. A later local edit can be synchronized against that new baseline.
 
 ## Slice 3 — ingestion and AppView
 
 - [ ] Consume Jetstream/firehose events for Vutame Lexicons.
 - [ ] Persist a durable ingestion cursor.
-- [ ] Validate and index portable profile/link records.
-- [ ] Build an AppView read model for portable Vutame identities.
+- [x] Share strict portable profile/link record validation and AppView storage with outbound sync.
+- [x] Build the core AppView read model for portable Vutame identities.
 - [ ] Resolve/display linked AT handles and DIDs in public Vutame surfaces.
 - [ ] Include indexed AT identities in appropriate discovery/search surfaces without duplicating linked local creators.
 - [ ] Handle record deletion, account migration, handle changes, malformed records, and replay safely.
@@ -59,6 +64,8 @@ Vutame is **ATProto-native, not ATProto-required**. A linked DID is an additiona
 - AT Protocol OAuth never accepts private-network metadata or arbitrary redirects in hosted mode.
 - OAuth state is single-use, short-lived, bound to the initiating Vutame account, and stored only as a hash.
 - Raw access tokens, refresh tokens, PKCE verifiers, and DPoP private keys are never stored unencrypted.
+- OAuth refresh tokens are treated as single-use and refreshed under a process mutex to prevent concurrent reuse.
+- PDS requests use DPoP-bound access tokens and require server-provided DPoP nonces.
 - Linking AT Protocol identity remains optional; ordinary Vutame profiles continue to work without it.
 
 ## M5 exit criteria
