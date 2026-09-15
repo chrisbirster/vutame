@@ -17,8 +17,13 @@ export function PortableProfilePage() {
   void load();
 
   async function load() {
+    const did = params.did ?? "";
+    if (!did) {
+      setError("portable profile unavailable");
+      return;
+    }
     try {
-      setData(await fetchPortableProfile(params.did));
+      setData(await fetchPortableProfile(did));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "portable profile unavailable");
     }
