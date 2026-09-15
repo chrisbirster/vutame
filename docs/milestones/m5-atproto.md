@@ -32,7 +32,7 @@ Vutame is **ATProto-native, not ATProto-required**. A linked DID is an additiona
 - [x] Enforce `vutame_wins` and `pds_wins` explicitly; `pds_wins` preserves remote divergence and reports it rather than overwriting it.
 - [x] Add manual sync/status APIs and creator UI with managed-record CIDs and conflict reporting.
 - [x] Add protocol-level interoperability tests against AT-compatible DPoP/XRPC behavior.
-- [ ] Exact-head CI and Docker green; merge Slice 2 into `dev`.
+- [x] Exact-head CI and Docker green; ready to merge Slice 2 into `dev`.
 
 Publication remains opt-in. Enabling publication does not silently write records; creators use **Sync now** to make the current Vutame public profile state portable. Vutame-managed link record keys are deterministic hashes of stable internal link IDs, so label/URL edits do not create duplicate PDS records.
 
