@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/growth"
 	"github.com/chrisbirster/vutame/internal/linkpreview"
 	"github.com/chrisbirster/vutame/internal/media"
+	"github.com/chrisbirster/vutame/internal/moderation"
 	"github.com/chrisbirster/vutame/internal/operations"
 	"github.com/chrisbirster/vutame/internal/profile"
 	"github.com/chrisbirster/vutame/internal/ratelimit"
@@ -34,6 +36,7 @@ type Options struct {
 	Growth          *growth.Service
 	Operations      *operations.Store
 	Safety          safety.Store
+	Moderation      *moderation.Service
 	ATProto         *atproto.Store
 	Billing         *billing.Service
 	Limiter         ratelimit.Gate
@@ -59,11 +62,25 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 		})
 	})
 
-	mux.HandleFunc("GET /api/v1/discover", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/v1/discover", func(w http.ResponseWriter, r *http.Request) {
 		items, err := profiles.Discover()
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 			return
+		}
+		if options.Moderation != nil {
+			filtered := make([]profile.Profile, 0, len(items))
+			for _, item := range items {
+				allowed, err := publicProfileAllowed(r.Context(), options, item.Handle, true)
+				if err != nil {
+					writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+					return
+				}
+				if allowed {
+					filtered = append(filtered, item)
+				}
+			}
+			items = filtered
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"profiles": items})
 	})
@@ -84,6 +101,15 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 
 	mux.HandleFunc("GET /api/v1/profiles/{handle}", func(w http.ResponseWriter, r *http.Request) {
 		handle := strings.TrimSpace(r.PathValue("handle"))
+		allowed, err := publicProfileAllowed(r.Context(), options, handle, false)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+			return
+		}
+		if !allowed {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "profile not found"})
+			return
+		}
 		item, err := profiles.Get(handle)
 		if errors.Is(err, profile.ErrNotFound) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "profile not found"})
@@ -103,6 +129,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	registerSocialRoutes(mux, profiles, options)
 	registerActivityRoutes(mux, options)
 	registerSafetyRoutes(mux, options)
+	registerModerationRoutes(mux, options)
 	registerAnalyticsRoutes(mux, profiles, options)
 	registerGrowthRoutes(mux, options)
 	registerOperationsRoutes(mux, options)
@@ -129,6 +156,26 @@ func normalizeOptions(options Options) Options {
 		options.Limiter = ratelimit.New()
 	}
 	return options
+}
+
+func publicProfileAllowed(ctx context.Context, options Options, handle string, discovery bool) (bool, error) {
+	if options.Moderation == nil {
+		return true, nil
+	}
+	policy, err := options.Moderation.Policy(ctx, handle)
+	if errors.Is(err, moderation.ErrNotFound) {
+		// The profile store can be an in-memory/seed implementation in development
+		// while moderation is backed by the persistent database. Missing policy is
+		// therefore not treated as a takedown.
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if discovery {
+		return policy.Discoverable(), nil
+	}
+	return !policy.Hidden(), nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
