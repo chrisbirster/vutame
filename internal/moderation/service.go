@@ -562,6 +562,16 @@ func insertAction(ctx context.Context, tx *sql.Tx, role Role, actorUserID, targe
 }
 
 func insertActionID(ctx context.Context, tx *sql.Tx, role Role, actorUserID, targetUserID, reportID, action, note, now string) (string, error) {
+	switch action {
+	case "resolved":
+		action = "resolve"
+	case "dismissed":
+		action = "dismiss"
+	case "restricted":
+		action = "restrict"
+	case "suspended":
+		action = "suspend"
+	}
 	id, err := randomID("mod_")
 	if err != nil {
 		return "", err
