@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -186,14 +187,10 @@ func newConfiguredBillingService(t *testing.T, db *sql.DB, now time.Time, client
 }
 
 func stripeTestSignature(secret string, at time.Time, body []byte) string {
-	timestamp := strconvFormatInt(at.Unix())
+	timestamp := strconv.FormatInt(at.Unix(), 10)
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write([]byte(timestamp + "." + string(body)))
 	return "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
-}
-
-func strconvFormatInt(value int64) string {
-	return time.Unix(value, 0).UTC().Format("1136239445")
 }
 
 func writeBillingJSON(t *testing.T, w http.ResponseWriter, value any) {
