@@ -16,6 +16,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/analytics"
 	"github.com/chrisbirster/vutame/internal/atproto"
 	"github.com/chrisbirster/vutame/internal/auth"
+	"github.com/chrisbirster/vutame/internal/billing"
 	datastore "github.com/chrisbirster/vutame/internal/database"
 	"github.com/chrisbirster/vutame/internal/growth"
 	"github.com/chrisbirster/vutame/internal/httpapi"
@@ -97,6 +98,11 @@ func main() {
 		slog.Error("open AT Protocol store", "error", err)
 		os.Exit(1)
 	}
+	billingService, err := openBillingService(databaseRuntime, marketingOrigin)
+	if err != nil {
+		slog.Error("open billing service", "error", err)
+		os.Exit(1)
+	}
 	activityStore = operations.WrapActivityStore(activityStore, operationsStore)
 	editor = activity.NewRecordingEditor(editor, activityStore)
 	if operationsStore != nil {
@@ -121,6 +127,7 @@ func main() {
 			Operations:      operationsStore,
 			Safety:          safetyStore,
 			ATProto:         atprotoStore,
+			Billing:         billingService,
 			CookieSecure:    cookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -153,6 +160,8 @@ func main() {
 		"safety_enabled", safetyStore != nil,
 		"atproto_enabled", atprotoStore != nil,
 		"atproto_jetstream_enabled", atprotoStore != nil && atprotoStore.JetstreamEnabled(),
+		"billing_enabled", billingService != nil,
+		"paid_upgrades_configured", billingService != nil && billingService.Configured(),
 	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server failed", "error", err)
@@ -273,6 +282,25 @@ func openATProtoStore(runtime *datastore.Runtime, marketingOrigin string) (*atpr
 		JetstreamURL: strings.TrimSpace(os.Getenv("VUTAME_ATPROTO_JETSTREAM_URL")),
 		ClientName:   "Vutame",
 		MarketingURL: marketingOrigin,
+	})
+}
+
+func openBillingService(runtime *datastore.Runtime, marketingOrigin string) (*billing.Service, error) {
+	if runtime == nil || runtime.DB == nil {
+		return nil, nil
+	}
+	apiBase := strings.TrimRight(envString("VUTAME_STRIPE_API_BASE", "https://api.stripe.com"), "/")
+	if strings.EqualFold(envString("VUTAME_ENV", "development"), "production") && apiBase != "https://api.stripe.com" {
+		return nil, errors.New("VUTAME_STRIPE_API_BASE cannot be overridden in production")
+	}
+	return billing.NewService(runtime.DB, billing.Config{
+		StripeSecretKey:     strings.TrimSpace(os.Getenv("VUTAME_STRIPE_SECRET_KEY")),
+		StripeWebhookSecret: strings.TrimSpace(os.Getenv("VUTAME_STRIPE_WEBHOOK_SECRET")),
+		ProPriceID:           strings.TrimSpace(os.Getenv("VUTAME_STRIPE_PRO_PRICE_ID")),
+		SuccessURL:           envString("VUTAME_STRIPE_SUCCESS_URL", marketingOrigin+"/billing?checkout=success"),
+		CancelURL:            envString("VUTAME_STRIPE_CANCEL_URL", marketingOrigin+"/billing?checkout=cancel"),
+		PortalReturnURL:      envString("VUTAME_STRIPE_PORTAL_RETURN_URL", marketingOrigin+"/billing"),
+		StripeAPIBase:        apiBase,
 	})
 }
 
