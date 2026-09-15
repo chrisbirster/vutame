@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,44 @@ func registerATProtoRoutes(mux *http.ServeMux, options Options) {
 			return
 		}
 		writeJSON(w, http.StatusOK, item)
+	})
+
+	mux.HandleFunc("GET /api/v1/atproto/profiles/{did}", func(w http.ResponseWriter, r *http.Request) {
+		if !requireATProto(w, options) || !allowRate(w, options, "atproto-appview:"+remoteRateIdentity(r), 120, time.Minute) {
+			return
+		}
+		did := strings.TrimSpace(r.PathValue("did"))
+		item, err := options.ATProto.IndexedProfile(r.Context(), did)
+		if atprotoError(w, err) {
+			return
+		}
+		response := map[string]any{"profile": item}
+		if identity, err := options.ATProto.ResolveIdentity(r.Context(), did); err == nil {
+			response["identity"] = identity
+		}
+		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+		writeJSON(w, http.StatusOK, response)
+	})
+
+	mux.HandleFunc("GET /api/v1/atproto/search", func(w http.ResponseWriter, r *http.Request) {
+		if !requireATProto(w, options) || !allowRate(w, options, "atproto-search:"+remoteRateIdentity(r), 120, time.Minute) {
+			return
+		}
+		limit := 20
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 || parsed > 50 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "limit must be 1-50"})
+				return
+			}
+			limit = parsed
+		}
+		items, err := options.ATProto.SearchIndexed(r.Context(), r.URL.Query().Get("q"), limit)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"profiles": items})
 	})
 
 	mux.HandleFunc("GET /api/v1/me/atproto", func(w http.ResponseWriter, r *http.Request) {
