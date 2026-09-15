@@ -18,6 +18,7 @@ function Layout(props: ParentProps) {
           <a {...stylex.attrs(styles.navLink)} href="/analytics">Analytics</a>
           <a {...stylex.attrs(styles.navLink)} href="/growth">Growth</a>
           <a {...stylex.attrs(styles.navLink)} href="/operations">Operations</a>
+          <a {...stylex.attrs(styles.navLink)} href="/billing">Billing</a>
           <a {...stylex.attrs(styles.navLink)} href="/settings/atproto">AT Protocol</a>
           <a {...stylex.attrs(styles.navLink)} href="/settings/import">Share & import</a>
           <a {...stylex.attrs(styles.navLink)} href="/settings/safety">Safety</a>
