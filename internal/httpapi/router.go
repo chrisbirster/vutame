@@ -10,6 +10,7 @@ import (
 	"github.com/chrisbirster/vutame/internal/analytics"
 	"github.com/chrisbirster/vutame/internal/atproto"
 	"github.com/chrisbirster/vutame/internal/auth"
+	"github.com/chrisbirster/vutame/internal/billing"
 	"github.com/chrisbirster/vutame/internal/growth"
 	"github.com/chrisbirster/vutame/internal/linkpreview"
 	"github.com/chrisbirster/vutame/internal/media"
@@ -34,6 +35,7 @@ type Options struct {
 	Operations      *operations.Store
 	Safety          safety.Store
 	ATProto         *atproto.Store
+	Billing         *billing.Service
 	Limiter         ratelimit.Gate
 	CookieSecure    bool
 }
@@ -105,6 +107,7 @@ func New(web http.Handler, profiles profile.Store, options Options) http.Handler
 	registerGrowthRoutes(mux, options)
 	registerOperationsRoutes(mux, options)
 	registerATProtoRoutes(mux, options)
+	registerBillingRoutes(mux, options)
 	registerProfileUtilityRoutes(mux, profiles, options)
 	mux.Handle("/", profileHTMLHandler(web, profiles, options))
 	return mux
