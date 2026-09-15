@@ -8,6 +8,7 @@ import {
 } from "./pages";
 import { AnalyticsPage } from "./analytics-page";
 import { ATProtoPage } from "./atproto-page";
+import { BillingPage } from "./billing-page";
 import { DiscoverPage } from "./discover-page";
 import { EditorPage, SettingsPage } from "./editor";
 import { FeedPage } from "./feed";
@@ -27,6 +28,7 @@ export const Router = createRouter({
     { path: "/analytics", component: AnalyticsPage },
     { path: "/growth", component: GrowthPage },
     { path: "/operations", component: OperationsPage },
+    { path: "/billing", component: BillingPage },
     { path: "/create", component: EditorPage },
     { path: "/settings", component: SettingsPage },
     { path: "/settings/import", component: LinkToolsPage },

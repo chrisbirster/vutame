@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chrisbirster/vutame/internal/analytics"
+	"github.com/chrisbirster/vutame/internal/billing"
 	"github.com/chrisbirster/vutame/internal/profile"
 )
 
@@ -54,6 +55,9 @@ func registerAnalyticsRoutes(mux *http.ServeMux, profiles profile.Store, options
 				return
 			}
 			days = parsed
+		}
+		if days > 30 && !requireEntitlement(w, r, options, user.ID, billing.FeatureAdvancedAnalytics) {
+			return
 		}
 		dashboard, err := options.Analytics.Dashboard(r.Context(), user.ID, days, time.Now().UTC())
 		if errors.Is(err, analytics.ErrProfileRequired) {

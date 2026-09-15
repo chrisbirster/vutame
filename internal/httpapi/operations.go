@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chrisbirster/vutame/internal/analytics"
+	"github.com/chrisbirster/vutame/internal/billing"
 	"github.com/chrisbirster/vutame/internal/operations"
 )
 
@@ -25,6 +26,7 @@ func registerOperationsRoutes(mux *http.ServeMux, options Options) {
 	mux.HandleFunc("POST /api/v1/me/domains", func(w http.ResponseWriter, r *http.Request) {
 		user, ok := requireAuthenticatedUser(w, r, options)
 		if !ok || !requireOperations(w, options) || !requireJSON(w, r) { return }
+		if !requireEntitlement(w, r, options, user.ID, billing.FeatureCustomDomains) { return }
 		var input struct{ Hostname string `json:"hostname"` }
 		if decodeJSON(r, &input) != nil { writeJSON(w, http.StatusBadRequest, map[string]string{"error":"invalid request"}); return }
 		item, err := options.Operations.AddDomain(r.Context(), user.ID, input.Hostname)
@@ -35,6 +37,7 @@ func registerOperationsRoutes(mux *http.ServeMux, options Options) {
 	mux.HandleFunc("POST /api/v1/me/domains/{id}/verify", func(w http.ResponseWriter, r *http.Request) {
 		user, ok := requireAuthenticatedUser(w, r, options)
 		if !ok || !requireOperations(w, options) { return }
+		if !requireEntitlement(w, r, options, user.ID, billing.FeatureCustomDomains) { return }
 		item, err := options.Operations.VerifyDomain(r.Context(), user.ID, r.PathValue("id"))
 		if operationsError(w, err) { return }
 		writeJSON(w, http.StatusOK, item)
@@ -138,6 +141,7 @@ func registerOperationsRoutes(mux *http.ServeMux, options Options) {
 		if raw := strings.TrimSpace(r.URL.Query().Get("days")); raw != "" {
 			parsed, err := strconv.Atoi(raw); if err != nil || parsed < 1 || parsed > analytics.MaxDashboardDays { writeJSON(w, http.StatusBadRequest, map[string]string{"error":"days must be between 1 and 90"}); return }; days = parsed
 		}
+		if days > 30 && !requireEntitlement(w, r, options, userID, billing.FeatureAdvancedAnalytics) { return }
 		item, err := options.Analytics.Dashboard(r.Context(), userID, days, time.Now().UTC())
 		if err != nil { writeJSON(w, http.StatusInternalServerError, map[string]string{"error":"analytics unavailable"}); return }
 		writeJSON(w, http.StatusOK, item)
