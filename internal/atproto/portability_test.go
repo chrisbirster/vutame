@@ -2,6 +2,7 @@ package atproto
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -88,7 +89,7 @@ func TestPortabilityLifecycleAuthorizePublishIngestRender(t *testing.T) {
 	}
 
 	profileEvent := JetstreamEvent{DID: "did:plc:portable", Kind: "commit", Cursor: 101, Commit: &JetstreamCommit{Operation: "update", Collection: ProfileCollection, RKey: "self", CID: profileRecord.CID, Record: profileRecord.Value}}
-	profilePayload, err := marshalJetstreamTestEvent(profileEvent)
+	profilePayload, err := json.Marshal(profileEvent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +97,7 @@ func TestPortabilityLifecycleAuthorizePublishIngestRender(t *testing.T) {
 		t.Fatalf("ingest profile: %v", err)
 	}
 	linkEvent := JetstreamEvent{DID: "did:plc:portable", Kind: "commit", Cursor: 102, Commit: &JetstreamCommit{Operation: "update", Collection: LinkCollection, RKey: linkRKey, CID: linkRecord.CID, Record: linkRecord.Value}}
-	linkPayload, err := marshalJetstreamTestEvent(linkEvent)
+	linkPayload, err := json.Marshal(linkEvent)
 	if err != nil {
 		t.Fatal(err)
 	}
