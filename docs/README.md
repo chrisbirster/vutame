@@ -12,8 +12,9 @@ This directory is the source of truth for product and engineering decisions.
 - [M2 — Profile design](milestones/m2-profile-design.md) — completed themes, media, rich/featured/scheduled links, sharing, SEO, import, and accessibility/performance work.
 - [M3 — Discovery and social graph](milestones/m3-discovery-social-graph.md) — completed follows, discovery/search, activity feeds, cursor pagination, and safety/privacy rollout controls.
 - [M4 — Analytics, growth, and creator tools](milestones/m4-analytics-growth.md) — completed privacy-conscious analytics, growth blocks, retention, custom domains, export, scoped tokens, and signed webhooks.
-- [M5 — AT Protocol identity and portability](milestones/m5-atproto.md) — current OAuth identity, PDS publication, ingestion/AppView, and portability milestone.
+- [M5 — AT Protocol identity and portability](milestones/m5-atproto.md) — completed OAuth identity linking, PDS publication, Jetstream/AppView indexing, portable rendering, and interoperability/migration documentation.
+- M6 — Monetization and production scale — current milestone.
 
-**Current roadmap milestone: M5 — AT Protocol identity and portability.**
+**Current roadmap milestone: M6 — Monetization and production scale.**
 
 When implementation and documentation disagree, update the documentation in the same pull request that changes the architecture.
