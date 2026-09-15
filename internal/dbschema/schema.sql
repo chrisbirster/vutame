@@ -55,7 +55,7 @@ CREATE TABLE follows (
   CHECK (follower_user_id <> following_user_id)
 );
 CREATE INDEX follows_follower_created_idx ON follows(follower_user_id, created_at DESC, following_user_id);
-CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, follower_user_id);
+CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, following_user_id);
 
 CREATE TABLE blocks (
   blocker_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
@@ -313,6 +313,53 @@ CREATE TABLE atproto_jetstream_state (
   cursor_us INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE billing_customers (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  provider TEXT NOT NULL DEFAULT 'stripe' CHECK (provider IN ('stripe')),
+  customer_id TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX billing_customers_customer_idx ON billing_customers(customer_id);
+
+CREATE TABLE billing_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  provider TEXT NOT NULL DEFAULT 'stripe' CHECK (provider IN ('stripe')),
+  provider_subscription_id TEXT NOT NULL UNIQUE,
+  customer_id TEXT NOT NULL,
+  price_id TEXT NOT NULL,
+  plan TEXT NOT NULL CHECK (plan IN ('pro')),
+  status TEXT NOT NULL CHECK (status IN ('incomplete','incomplete_expired','trialing','active','past_due','canceled','unpaid','paused')),
+  current_period_end TEXT,
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0 CHECK (cancel_at_period_end IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX billing_subscriptions_user_status_idx ON billing_subscriptions(user_id, status, updated_at DESC);
+CREATE INDEX billing_subscriptions_customer_idx ON billing_subscriptions(customer_id, updated_at DESC);
+
+CREATE TABLE billing_events (
+  provider_event_id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'stripe' CHECK (provider IN ('stripe')),
+  event_type TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  received_at TEXT NOT NULL,
+  processed_at TEXT NOT NULL
+);
+CREATE INDEX billing_events_processed_idx ON billing_events(processed_at DESC);
+
+CREATE TABLE entitlement_grants (
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  feature TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('admin', 'migration')),
+  expires_at TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, feature)
+);
+CREATE INDEX entitlement_grants_expires_idx ON entitlement_grants(expires_at, user_id);
 
 CREATE TABLE media_assets (
   id TEXT PRIMARY KEY,
