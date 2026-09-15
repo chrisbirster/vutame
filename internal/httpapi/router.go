@@ -155,6 +155,14 @@ func normalizeOptions(options Options) Options {
 	if options.Limiter == nil {
 		options.Limiter = ratelimit.New()
 	}
+	if options.Moderation == nil && options.Safety != nil {
+		type moderationProvider interface {
+			ModerationOperations() *moderation.Service
+		}
+		if provider, ok := options.Safety.(moderationProvider); ok {
+			options.Moderation = provider.ModerationOperations()
+		}
+	}
 	return options
 }
 
