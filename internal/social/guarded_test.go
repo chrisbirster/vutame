@@ -60,6 +60,22 @@ func TestGuardedStoreAppliesBlockPrivacyAndModeration(t *testing.T) {
 		t.Fatalf("private follow error = %v", err)
 	}
 
+	if err := policies.SetModeration(ctx, "bravo", safety.Moderation{State: "restricted"}); err != nil {
+		t.Fatal(err)
+	}
+	page, err = guarded.SearchPage(ctx, SearchInput{Query: "builder", Limit: 10}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, creator := range page.Creators {
+		if creator.Handle == "bravo" {
+			t.Fatal("restricted creator leaked into discovery search")
+		}
+	}
+	if _, err := guarded.Creator(ctx, "bravo", ""); err != nil {
+		t.Fatalf("restricted creator should remain directly addressable: %v", err)
+	}
+
 	if err := policies.SetModeration(ctx, "bravo", safety.Moderation{State: "suspended"}); err != nil {
 		t.Fatal(err)
 	}
