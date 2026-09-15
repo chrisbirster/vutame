@@ -7,6 +7,7 @@ import {
   type AuthSession,
   type Creator,
 } from "./api";
+import { searchPortableProfiles, type PortableProfile } from "./atproto-api";
 import { fetchDiscoveryPage } from "./discovery-api";
 import { discoveryStyles as network } from "./discover.stylex";
 
@@ -14,6 +15,7 @@ const sx = stylex.attrs;
 
 export function DiscoverPage() {
   const [creators, setCreators] = createSignal<Creator[]>([]);
+  const [portable, setPortable] = createSignal<PortableProfile[]>([]);
   const [session, setSession] = createSignal<AuthSession | undefined>();
   const [query, setQuery] = createSignal("");
   const [category, setCategory] = createSignal("");
@@ -28,9 +30,14 @@ export function DiscoverPage() {
 
   async function bootstrap() {
     try {
-      const [current, page] = await Promise.all([fetchAuthSession(), fetchDiscoveryPage()]);
+      const [current, page, portableProfiles] = await Promise.all([
+        fetchAuthSession(),
+        fetchDiscoveryPage(),
+        loadPortable("", "", ""),
+      ]);
       setSession(current);
       setCreators(page.creators);
+      setPortable(portableProfiles);
       setNextCursor(page.next_cursor || "");
     } catch (reason) {
       setError(readableError(reason));
@@ -44,8 +51,12 @@ export function DiscoverPage() {
     setLoading(true);
     setError("");
     try {
-      const page = await fetchDiscoveryPage({ q: query(), category: category(), interest: interest() });
+      const [page, portableProfiles] = await Promise.all([
+        fetchDiscoveryPage({ q: query(), category: category(), interest: interest() }),
+        loadPortable(query(), category(), interest()),
+      ]);
       setCreators(page.creators);
+      setPortable(portableProfiles);
       setNextCursor(page.next_cursor || "");
     } catch (reason) {
       setError(readableError(reason));
@@ -109,7 +120,7 @@ export function DiscoverPage() {
           <h1 {...sx(network.title)}>Find your people.</h1>
         </div>
         <div>
-          <p {...sx(network.intro)}>Search creators by handle, name, bio, category, or the interests they chose to make discoverable.</p>
+          <p {...sx(network.intro)}>Search Vutame creators plus portable <code>com.vutame.*</code> profiles discovered on AT Protocol.</p>
           <Show when={session()?.authenticated}>
             <div {...sx(network.actions)}><a {...sx(network.button, network.secondaryButton)} href="/settings/discovery">Edit discovery profile</a></div>
           </Show>
@@ -133,30 +144,74 @@ export function DiscoverPage() {
       </form>
 
       <Show when={error()}><div {...sx(network.notice, network.error)} role="alert">{error()}</div></Show>
-      <Show when={!loading() || creators().length > 0} fallback={<div {...sx(network.empty)}>Loading creators…</div>}>
-        <Show when={creators().length > 0} fallback={<div {...sx(network.empty)}>No creators matched those filters.</div>}>
-          <div {...sx(network.profileGrid)}>
-            <For each={creators()}>
-              {(creator) => (
-                <CreatorCard
-                  creator={creator}
-                  authenticated={session()?.authenticated === true}
-                  busy={busyHandle() === creator.handle}
-                  onToggle={() => void toggleFollow(creator)}
-                />
-              )}
-            </For>
-          </div>
-          <Show when={nextCursor()}>
-            <div {...sx(network.actions)}>
-              <button {...sx(network.button, network.secondaryButton)} type="button" disabled={loadingMore()} onClick={() => void loadMore()}>
-                {loadingMore() ? "Loading…" : "Load more creators"}
-              </button>
+      <Show when={!loading() || creators().length > 0 || portable().length > 0} fallback={<div {...sx(network.empty)}>Loading creators…</div>}>
+        <Show when={creators().length > 0 || portable().length > 0} fallback={<div {...sx(network.empty)}>No creators matched those filters.</div>}>
+          <Show when={creators().length > 0}>
+            <div {...sx(network.profileGrid)}>
+              <For each={creators()}>
+                {(creator) => (
+                  <CreatorCard
+                    creator={creator}
+                    authenticated={session()?.authenticated === true}
+                    busy={busyHandle() === creator.handle}
+                    onToggle={() => void toggleFollow(creator)}
+                  />
+                )}
+              </For>
             </div>
+            <Show when={nextCursor()}>
+              <div {...sx(network.actions)}>
+                <button {...sx(network.button, network.secondaryButton)} type="button" disabled={loadingMore()} onClick={() => void loadMore()}>
+                  {loadingMore() ? "Loading…" : "Load more creators"}
+                </button>
+              </div>
+            </Show>
+          </Show>
+
+          <Show when={portable().length > 0}>
+            <div {...sx(network.heading)}>
+              <div>
+                <div {...sx(network.eyebrow)}>AT PROTOCOL</div>
+                <h2 {...sx(network.title)}>Portable Vutas</h2>
+              </div>
+              <p {...sx(network.intro)}>Indexed from user-owned PDS records. DIDs are the stable identity; portable-only creators are not duplicated when that DID is already linked to a local Vutame account.</p>
+            </div>
+            <div {...sx(network.profileGrid)}><For each={portable()}>{(item) => <PortableCard profile={item} />}</For></div>
           </Show>
         </Show>
       </Show>
     </section>
+  );
+}
+
+async function loadPortable(q: string, category: string, interest: string) {
+  if (category.trim() || interest.trim()) return [];
+  try {
+    return await searchPortableProfiles(q, 20);
+  } catch {
+    // Portable discovery is additive. Local discovery remains useful when the
+    // AT Protocol index is disabled or temporarily unavailable.
+    return [];
+  }
+}
+
+function PortableCard(props: { profile: PortableProfile }) {
+  const initial = () => (props.profile.display_name || props.profile.handle || "A").slice(0, 1).toUpperCase();
+  return (
+    <article {...sx(network.card)}>
+      <div {...sx(network.cardTop)}>
+        <Show when={props.profile.avatar_url} fallback={<div {...sx(network.avatar)} aria-hidden="true">{initial()}</div>}>
+          {(avatar) => <img {...sx(network.avatar)} src={avatar()} alt="" width="52" height="52" loading="lazy" decoding="async" />}
+        </Show>
+        <div {...sx(network.identity)}>
+          <a {...sx(network.name)} href={`/at/${encodeURIComponent(props.profile.did)}`}>{props.profile.display_name || props.profile.handle || "Portable Vuta"}</a>
+          <span {...sx(network.handle)}>{props.profile.handle ? `@${props.profile.handle} · ` : ""}AT Protocol</span>
+        </div>
+      </div>
+      <p {...sx(network.bio)}>{props.profile.bio || "Portable Vutame profile."}</p>
+      <div {...sx(network.tags)}><span {...sx(network.tag, network.category)}>PDS</span><span {...sx(network.tag)}>{props.profile.did}</span></div>
+      <div {...sx(network.cardFooter)}><a {...sx(network.profileLink)} href={`/at/${encodeURIComponent(props.profile.did)}`}>View portable Vuta →</a></div>
+    </article>
   );
 }
 
