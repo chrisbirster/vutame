@@ -24,13 +24,13 @@ Slice 1 merged through PR #30 as `370d2d024d48141e24668603f9831e64d9bcf593` afte
 
 ## Slice 2 — abuse and moderation operations
 
-- [ ] Add an explicit admin authorization model; never expose moderation mutation APIs through a shared query/header secret.
-- [ ] Add a moderation queue for open/reviewing reports.
-- [ ] Add report assignment, notes, resolution/dismissal, restriction/suspension, and takedown audit history.
-- [ ] Add public-content takedown behavior that consistently affects profiles, discovery, feeds, AppView-linked local identities, contact capture, and custom domains.
-- [ ] Add abuse-rate dashboards/counters without storing unnecessary raw user data.
-- [ ] Add creator appeal/contact workflow primitives.
-- [ ] Cover moderation authorization and policy propagation in SQLite/HTTP/Turso tests.
+- [x] Add an explicit admin authorization model; never expose moderation mutation APIs through a shared query/header secret.
+- [x] Add a moderation queue for open/reviewing reports.
+- [x] Add report assignment, notes, resolution/dismissal, restriction/suspension, and takedown audit history.
+- [x] Add public-content takedown behavior that consistently affects profiles, discovery, feeds, AppView-linked local identities, contact capture, and custom domains.
+- [x] Add abuse-rate dashboards/counters without storing unnecessary raw user data.
+- [x] Add creator appeal/contact workflow primitives.
+- [x] Cover moderation authorization and policy propagation in SQLite/HTTP/Turso tests.
 - [ ] Exact-head CI and Docker green; merge into `dev`.
 
 ## Slice 3 — reliability, observability, and recovery
