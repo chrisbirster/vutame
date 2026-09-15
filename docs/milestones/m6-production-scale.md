@@ -6,29 +6,31 @@ Goal: make Vutame sustainable and operable as a reliable public service without 
 
 ## Slice 1 — plans, billing, and entitlements
 
-- [ ] Define durable `free` and `pro` plan boundaries.
-- [ ] Add an entitlement service independent of the billing provider.
-- [ ] Integrate Stripe-hosted Checkout for subscription creation.
-- [ ] Integrate Stripe Customer Portal for subscription management.
-- [ ] Verify Stripe webhook signatures against the raw request body.
-- [ ] Process subscription webhooks idempotently and persist a provider event ledger.
-- [ ] Keep billing provider customer/subscription IDs separate from Vutame user IDs.
-- [ ] Add a Billing workspace showing current plan, subscription state, and feature entitlements.
-- [ ] Make custom domains a Pro entitlement when billing is configured.
-- [ ] Make analytics history beyond 30 days a Pro entitlement when billing is configured.
-- [ ] Keep core profile/link publishing, social graph, safety, export, and AT Protocol portability free.
-- [ ] Cover billing/entitlement behavior on SQLite, HTTP, and Turso paths.
-- [ ] Exact-head CI and Docker green; merge into `dev`.
+- [x] Define durable `free` and `pro` plan boundaries.
+- [x] Add an entitlement service independent of the billing provider.
+- [x] Integrate Stripe-hosted Checkout for subscription creation.
+- [x] Integrate Stripe Customer Portal for subscription management.
+- [x] Verify Stripe webhook signatures against the raw request body.
+- [x] Process subscription webhooks idempotently and persist a provider event ledger.
+- [x] Keep billing provider customer/subscription IDs separate from Vutame user IDs.
+- [x] Add a Billing workspace showing current plan, subscription state, and feature entitlements.
+- [x] Make custom domains a Pro entitlement when billing is configured.
+- [x] Make analytics history beyond 30 days a Pro entitlement when billing is configured.
+- [x] Keep core profile/link publishing, social graph, safety, export, and AT Protocol portability free.
+- [x] Cover billing/entitlement behavior on SQLite, HTTP, and Turso paths.
+- [x] Exact-head CI and Docker green; merge into `dev`.
+
+Slice 1 merged through PR #30 as `370d2d024d48141e24668603f9831e64d9bcf593` after exact-head CI and Docker verification on `528be96c81e29861e854a743785f215b4c4ca954`.
 
 ## Slice 2 — abuse and moderation operations
 
-- [ ] Add an explicit admin authorization model; never expose moderation mutation APIs through a shared query/header secret.
-- [ ] Add a moderation queue for open/reviewing reports.
-- [ ] Add report assignment, notes, resolution/dismissal, restriction/suspension, and takedown audit history.
-- [ ] Add public-content takedown behavior that consistently affects profiles, discovery, feeds, AppView-linked local identities, contact capture, and custom domains.
-- [ ] Add abuse-rate dashboards/counters without storing unnecessary raw user data.
-- [ ] Add creator appeal/contact workflow primitives.
-- [ ] Cover moderation authorization and policy propagation in SQLite/HTTP/Turso tests.
+- [x] Add an explicit admin authorization model; never expose moderation mutation APIs through a shared query/header secret.
+- [x] Add a moderation queue for open/reviewing reports.
+- [x] Add report assignment, notes, resolution/dismissal, restriction/suspension, and takedown audit history.
+- [x] Add public-content takedown behavior that consistently affects profiles, discovery, feeds, AppView-linked local identities, contact capture, and custom domains.
+- [x] Add abuse-rate dashboards/counters without storing unnecessary raw user data.
+- [x] Add creator appeal/contact workflow primitives.
+- [x] Cover moderation authorization and policy propagation in SQLite/HTTP/Turso tests.
 - [ ] Exact-head CI and Docker green; merge into `dev`.
 
 ## Slice 3 — reliability, observability, and recovery

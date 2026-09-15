@@ -12,7 +12,7 @@ import (
 
 func registerGrowthRoutes(mux *http.ServeMux, options Options) {
 	mux.HandleFunc("GET /api/v1/profiles/{handle}/contact-block", func(w http.ResponseWriter, r *http.Request) {
-		if !requireGrowth(w, options) {
+		if !requireGrowth(w, options) || !allowPublicProfileFeature(w, r, options) {
 			return
 		}
 		block, err := options.Growth.PublicBlock(r.Context(), r.PathValue("handle"))
@@ -28,7 +28,7 @@ func registerGrowthRoutes(mux *http.ServeMux, options Options) {
 	})
 
 	mux.HandleFunc("POST /api/v1/profiles/{handle}/contacts", func(w http.ResponseWriter, r *http.Request) {
-		if !requireGrowth(w, options) || !requireJSON(w, r) || !allowRate(w, options, "contact:"+remoteRateIdentity(r), 12, time.Hour) {
+		if !requireGrowth(w, options) || !allowPublicProfileFeature(w, r, options) || !requireJSON(w, r) || !allowRate(w, options, "contact:"+remoteRateIdentity(r), 12, time.Hour) {
 			return
 		}
 		var input struct {
@@ -148,6 +148,19 @@ func registerGrowthRoutes(mux *http.ServeMux, options Options) {
 		}
 		writeJSON(w, http.StatusOK, settings)
 	})
+}
+
+func allowPublicProfileFeature(w http.ResponseWriter, r *http.Request, options Options) bool {
+	allowed, err := publicProfileAllowed(r.Context(), options, r.PathValue("handle"), false)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+		return false
+	}
+	if !allowed {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "profile not found"})
+		return false
+	}
+	return true
 }
 
 func requireGrowth(w http.ResponseWriter, options Options) bool {

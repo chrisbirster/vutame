@@ -40,6 +40,17 @@ func registerATProtoRoutes(mux *http.ServeMux, options Options) {
 			return
 		}
 		did := strings.TrimSpace(r.PathValue("did"))
+		if options.Moderation != nil {
+			policy, err := options.Moderation.PolicyForDID(r.Context(), did)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+				return
+			}
+			if policy.Hidden() {
+				writeJSON(w, http.StatusNotFound, map[string]string{"error": "portable Vutame profile not found"})
+				return
+			}
+		}
 		item, err := options.ATProto.IndexedProfile(r.Context(), did)
 		if atprotoError(w, err) {
 			return

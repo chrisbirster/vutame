@@ -89,6 +89,59 @@ CREATE TABLE reports (
 CREATE INDEX reports_status_created_idx ON reports(status, created_at DESC, id DESC);
 CREATE INDEX reports_reported_created_idx ON reports(reported_user_id, created_at DESC, id DESC);
 
+CREATE TABLE moderation_admins (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('moderator', 'admin')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX moderation_admins_role_idx ON moderation_admins(role, user_id);
+
+CREATE TABLE report_workflow (
+  report_id TEXT PRIMARY KEY REFERENCES reports(id) ON DELETE CASCADE,
+  assigned_admin_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  resolved_at TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX report_workflow_assignee_idx ON report_workflow(assigned_admin_user_id, updated_at DESC);
+
+CREATE TABLE moderation_actions (
+  id TEXT PRIMARY KEY,
+  actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  actor_role TEXT NOT NULL CHECK (actor_role IN ('moderator', 'admin')),
+  target_user_id TEXT REFERENCES profiles(user_id) ON DELETE SET NULL,
+  report_id TEXT REFERENCES reports(id) ON DELETE SET NULL,
+  action TEXT NOT NULL CHECK (action IN ('assign', 'note', 'restrict', 'suspend', 'takedown', 'restore', 'resolve', 'dismiss', 'appeal_review', 'appeal_resolve')),
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX moderation_actions_created_idx ON moderation_actions(created_at DESC, id DESC);
+CREATE INDEX moderation_actions_target_idx ON moderation_actions(target_user_id, created_at DESC, id DESC);
+CREATE INDEX moderation_actions_report_idx ON moderation_actions(report_id, created_at DESC, id DESC);
+
+CREATE TABLE content_takedowns (
+  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  reason TEXT NOT NULL DEFAULT '',
+  action_id TEXT REFERENCES moderation_actions(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX content_takedowns_active_idx ON content_takedowns(active, updated_at DESC);
+
+CREATE TABLE moderation_appeals (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewing', 'resolved', 'dismissed')),
+  assigned_admin_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  response_note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX moderation_appeals_user_idx ON moderation_appeals(user_id, created_at DESC, id DESC);
+CREATE INDEX moderation_appeals_status_idx ON moderation_appeals(status, created_at DESC, id DESC);
+
 CREATE TABLE links (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

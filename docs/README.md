@@ -7,6 +7,7 @@ This directory is the source of truth for product and engineering decisions.
 - [Branching and releases](branching-and-releases.md) — `feature/* → dev → main`, release PRs, and version tags.
 - [Deployment](deployment.md) — Turso sync, Atlas schema management, hosted environment variables, and rollout order.
 - [Billing and entitlements](billing.md) — Stripe setup, entitlement boundaries, webhook security, data ownership, and deployment smoke tests.
+- [Moderation operations](moderation.md) — privileged authorization, report/appeal workflow, takedown propagation, audit history, and abuse counters.
 - [AT Protocol portability](atproto-portability.md) — published Lexicons, identity semantics, PDS publication, conflict policy, AppView ingestion, unlinking, and migration behavior.
 - [M0 — Foundation](milestones/m0-foundation.md) — completed runtime and domain foundation.
 - [M1 — Accounts and persistence](milestones/m1-accounts-persistence.md) — completed durable storage, authentication, handle claiming, link CRUD, and production persistence.

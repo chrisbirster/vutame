@@ -65,6 +65,15 @@ func profileHTMLHandler(web http.Handler, profiles profile.Store, options Option
 			handle = decoded
 		}
 
+		allowed, err := publicProfileAllowed(r.Context(), options, handle, false)
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if !allowed {
+			http.NotFound(w, r)
+			return
+		}
 		item, err := profiles.Get(handle)
 		if err != nil {
 			web.ServeHTTP(w, r)
