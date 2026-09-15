@@ -1,6 +1,6 @@
 # M5 — AT Protocol identity and portability
 
-Status: **in progress**
+Status: **complete**
 
 Goal: make Vutame identities portable and interoperable with the AT Protocol while keeping the normal Vutame signup and editing experience independent of federation.
 
@@ -56,8 +56,8 @@ Conflict semantics are deliberately asymmetric and observable. `vutame_wins` tre
 - [x] Document what lives only in Vutame versus what can live in a user's PDS.
 - [x] Document unlinking, token revocation expectations, conflict rules, and export/migration behavior.
 - [x] Add end-to-end portability coverage for authorize → publish → ingest → AppView render model.
-- [ ] Exact-head CI and Docker green for the final M5 branch.
-- [ ] Close M5 and advance the roadmap to M6.
+- [x] Exact-head application CI and Docker green for the final M5 implementation.
+- [x] Close M5 and advance the roadmap to M6.
 
 See [`../atproto-portability.md`](../atproto-portability.md) for the interoperability and migration contract.
 
@@ -77,4 +77,4 @@ See [`../atproto-portability.md`](../atproto-portability.md) for the interoperab
 
 ## M5 exit criteria
 
-An AT Protocol user can authorize Vutame, opt in to publishing Vutame profile/link records to their PDS, and have Vutame ingest, discover, and render those portable records while preserving clear conflict and identity semantics.
+**Satisfied.** An AT Protocol user can authorize Vutame, opt in to publishing Vutame profile/link records to their PDS, and have Vutame ingest, discover, and render those portable records while preserving clear conflict and identity semantics.
