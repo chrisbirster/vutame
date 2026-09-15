@@ -70,7 +70,8 @@ CREATE TABLE mutes (
   muter_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   muted_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
   created_at TEXT NOT NULL,
-  PRIMARY KEY (muter_user_id, muted_user_id)
+  PRIMARY KEY (muter_user_id, muted_user_id),
+  CHECK (muter_user_id <> muted_user_id)
 );
 CREATE INDEX mutes_muted_idx ON mutes(muted_user_id, muter_user_id);
 
