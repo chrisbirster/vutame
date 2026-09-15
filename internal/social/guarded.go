@@ -168,7 +168,7 @@ func (s *GuardedStore) visible(ctx context.Context, targetUserID, viewerUserID s
 	if err != nil {
 		return false, fmt.Errorf("check creator visibility: %w", err)
 	}
-	if moderation == "suspended" || (discoverableOnly && discoverable == 0) {
+	if moderation == "suspended" || (discoverableOnly && (discoverable == 0 || moderation != "active")) {
 		return false, nil
 	}
 	viewerUserID = strings.TrimSpace(viewerUserID)
