@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,15 +36,15 @@ func (s *Service) Checkout(ctx context.Context, userID string) (URLResponse, err
 		return URLResponse{}, err
 	}
 	form := url.Values{
-		"mode":                             {"subscription"},
-		"customer":                         {customerID},
-		"success_url":                      {s.config.SuccessURL},
-		"cancel_url":                       {s.config.CancelURL},
-		"client_reference_id":              {userID},
-		"line_items[0][price]":             {s.config.ProPriceID},
-		"line_items[0][quantity]":          {"1"},
-		"metadata[user_id]":                {userID},
-		"subscription_data[metadata][user_id]": {userID},
+		"mode":                                  {"subscription"},
+		"customer":                              {customerID},
+		"success_url":                           {s.config.SuccessURL},
+		"cancel_url":                            {s.config.CancelURL},
+		"client_reference_id":                   {userID},
+		"line_items[0][price]":                  {s.config.ProPriceID},
+		"line_items[0][quantity]":               {"1"},
+		"metadata[user_id]":                     {userID},
+		"subscription_data[metadata][user_id]":  {userID},
 	}
 	var response stripeIDResponse
 	if err := s.stripePostForm(ctx, "/v1/checkout/sessions", form, &response); err != nil {
@@ -61,7 +62,7 @@ func (s *Service) Portal(ctx context.Context, userID string) (URLResponse, error
 	}
 	var customerID string
 	if err := s.db.QueryRowContext(ctx, `SELECT customer_id FROM billing_customers WHERE user_id=?`, strings.TrimSpace(userID)).Scan(&customerID); err != nil {
-		if errors.Is(err, sqlErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return URLResponse{}, ErrNoCustomer
 		}
 		return URLResponse{}, err
@@ -86,7 +87,7 @@ func (s *Service) customerForUser(ctx context.Context, userID string) (string, e
 	if err == nil {
 		return customerID, nil
 	}
-	if !errors.Is(err, sqlErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
 	var email string
@@ -140,7 +141,9 @@ func (s *Service) stripePostForm(ctx context.Context, path string, form url.Valu
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		var payload struct {
-			Error struct { Message string `json:"message"` } `json:"error"`
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
 		}
 		_ = json.Unmarshal(data, &payload)
 		message := strings.TrimSpace(payload.Error.Message)
@@ -154,5 +157,3 @@ func (s *Service) stripePostForm(ctx context.Context, path string, form url.Valu
 	}
 	return nil
 }
-
-var sqlErrNoRows = errors.New("sql: no rows in result set")
