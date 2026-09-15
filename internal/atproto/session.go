@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,7 +64,7 @@ func (s *Store) loadSessionCredentials(ctx context.Context, userID string) (sess
 		&accessEnc, &refreshEnc, &keyEnc, &item.Scope, &expiresAt,
 	)
 	if err != nil {
-		if errors.Is(err, sqlErrNoRows()) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return sessionCredentials{}, ErrNotLinked
 		}
 		return sessionCredentials{}, err
@@ -203,10 +204,4 @@ func (s *Store) doDPoPJSON(ctx context.Context, method, endpoint string, body an
 		return response, nil
 	}
 	return nil, ErrOAuthResponse
-}
-
-// sqlErrNoRows keeps the session file independent from database/sql imports in
-// tests that replace this helper while still comparing the canonical sentinel.
-func sqlErrNoRows() error {
-	return errors.New("sql: no rows in result set")
 }
