@@ -85,7 +85,13 @@ func TestModerationRunsOnTursoEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list actions: %v", err)
 	}
-	if len(actions) < 2 || actions[0].Action != "takedown" {
+	seenTakedown := false
+	seenAssign := false
+	for _, action := range actions {
+		seenTakedown = seenTakedown || action.Action == "takedown"
+		seenAssign = seenAssign || action.Action == "assign"
+	}
+	if !seenTakedown || !seenAssign {
 		t.Fatalf("actions=%+v", actions)
 	}
 }
