@@ -73,6 +73,22 @@ func requireBilling(w http.ResponseWriter, options Options) bool {
 	return true
 }
 
+func requireEntitlement(w http.ResponseWriter, r *http.Request, options Options, userID string, feature billing.Feature) bool {
+	if options.Billing == nil || !options.Billing.Configured() {
+		return true
+	}
+	allowed, err := options.Billing.Entitled(r.Context(), userID, feature)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "entitlement check failed"})
+		return false
+	}
+	if !allowed {
+		writeJSON(w, http.StatusPaymentRequired, map[string]string{"error": "Vutame Pro required", "feature": string(feature)})
+		return false
+	}
+	return true
+}
+
 func billingError(w http.ResponseWriter, err error) bool {
 	if err == nil {
 		return false
