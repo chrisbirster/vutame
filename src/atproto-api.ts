@@ -25,6 +25,33 @@ export type ATProtoOAuthStart = {
   handle?: string;
 };
 
+export type ATProtoSyncedRecord = {
+  collection: string;
+  rkey: string;
+  cid?: string;
+  local_updated_at?: string;
+  synced_at: string;
+};
+
+export type ATProtoSyncStatus = {
+  account: ATProtoAccount;
+  records: ATProtoSyncedRecord[];
+};
+
+export type ATProtoSyncConflict = {
+  collection: string;
+  rkey: string;
+  reason: string;
+};
+
+export type ATProtoSyncReport = {
+  did: string;
+  published: number;
+  deleted: number;
+  conflicts: ATProtoSyncConflict[];
+  synced_at: string;
+};
+
 export async function resolveATProtoIdentity(identifier: string): Promise<ATProtoIdentity> {
   const params = new URLSearchParams({ identifier: identifier.trim() });
   return requestJSON<ATProtoIdentity>(`/api/v1/atproto/resolve?${params.toString()}`);
@@ -32,6 +59,17 @@ export async function resolveATProtoIdentity(identifier: string): Promise<ATProt
 
 export async function fetchATProtoAccount(): Promise<ATProtoAccountState> {
   return requestJSON<ATProtoAccountState>("/api/v1/me/atproto", { credentials: "same-origin" });
+}
+
+export async function fetchATProtoSyncStatus(): Promise<ATProtoSyncStatus> {
+  return requestJSON<ATProtoSyncStatus>("/api/v1/me/atproto/status", { credentials: "same-origin" });
+}
+
+export async function syncATProto(): Promise<ATProtoSyncReport> {
+  return requestJSON<ATProtoSyncReport>("/api/v1/me/atproto/sync", {
+    method: "POST",
+    credentials: "same-origin",
+  });
 }
 
 export async function startATProtoOAuth(identifier: string): Promise<ATProtoOAuthStart> {
