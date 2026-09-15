@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
+	"database/sql"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -14,7 +15,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -98,10 +98,6 @@ func (s *Store) consumeJetstream(ctx context.Context) error {
 			continue
 		}
 		if err := s.ProcessJetstreamEvent(ctx, message); err != nil {
-			// Malformed/irrelevant records must not poison a public stream. A JSON
-			// envelope error is retriable because it can indicate framing damage;
-			// record-validation errors are safely skipped while still advancing the
-			// stream cursor only when an envelope supplied one.
 			if !errors.Is(err, ErrInvalidIdentity) {
 				return err
 			}
@@ -148,9 +144,6 @@ func (s *Store) ProcessJetstreamEvent(ctx context.Context, payload []byte) error
 			handlingErr = s.purgeIndexedDID(ctx, event.DID)
 		}
 	case "identity":
-		// Identity events invalidate mutable handles. Resolve the DID again so a
-		// stale portable record cannot claim a verified AT handle. Resolution
-		// failures leave the portable record available by DID.
 		if identity, err := s.ResolveIdentity(ctx, event.DID); err == nil && identity.Handle != "" {
 			_, handlingErr = s.db.ExecContext(ctx, `UPDATE atproto_accounts SET handle=?,pds_url=?,updated_at=? WHERE did=?`, identity.Handle, identity.PDSURL, s.now().UTC().Format(time.RFC3339Nano), event.DID)
 		}
@@ -173,7 +166,7 @@ func (s *Store) ProcessJetstreamEvent(ctx context.Context, payload []byte) error
 func (s *Store) jetstreamCursor(ctx context.Context) (int64, error) {
 	var cursor int64
 	err := s.db.QueryRowContext(ctx, `SELECT cursor_us FROM atproto_jetstream_state WHERE name=?`, jetstreamCursorName).Scan(&cursor)
-	if errors.Is(err, sqlErrNoRowsSentinel) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
 	return cursor, err
@@ -359,9 +352,3 @@ func writeWebSocketControl(w io.Writer, opcode byte, payload []byte) error {
 	_, err := w.Write(frame)
 	return err
 }
-
-// database/sql's sentinel is surfaced through this package-level alias so the
-// cursor path remains easy to exercise without exporting database internals.
-var sqlErrNoRowsSentinel = errors.New("sql: no rows in result set")
-
-var _ netip.Addr
