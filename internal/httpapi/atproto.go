@@ -50,6 +50,30 @@ func registerATProtoRoutes(mux *http.ServeMux, options Options) {
 		writeJSON(w, http.StatusOK, map[string]any{"linked": true, "account": item})
 	})
 
+	mux.HandleFunc("GET /api/v1/me/atproto/status", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := requireAuthenticatedUser(w, r, options)
+		if !ok || !requireATProto(w, options) {
+			return
+		}
+		item, err := options.ATProto.Status(r.Context(), user.ID)
+		if atprotoError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusOK, item)
+	})
+
+	mux.HandleFunc("POST /api/v1/me/atproto/sync", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := requireAuthenticatedUser(w, r, options)
+		if !ok || !requireATProto(w, options) || !allowRate(w, options, "atproto-sync:"+user.ID, 30, time.Hour) {
+			return
+		}
+		item, err := options.ATProto.Sync(r.Context(), user.ID)
+		if atprotoError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusOK, item)
+	})
+
 	mux.HandleFunc("POST /api/v1/me/atproto/oauth/start", func(w http.ResponseWriter, r *http.Request) {
 		user, ok := requireAuthenticatedUser(w, r, options)
 		if !ok || !requireATProto(w, options) || !requireJSON(w, r) || !allowRate(w, options, "atproto-oauth:"+user.ID, 10, time.Hour) {
@@ -81,8 +105,6 @@ func registerATProtoRoutes(mux *http.ServeMux, options Options) {
 			r.URL.Query().Get("iss"),
 		)
 		if err != nil {
-			// The callback is a top-level browser navigation. Keep protocol details
-			// out of the URL while returning the creator to the settings surface.
 			http.Redirect(w, r, "/settings/atproto?error=oauth", http.StatusSeeOther)
 			return
 		}
@@ -139,11 +161,15 @@ func atprotoError(w http.ResponseWriter, err error) bool {
 	case errors.Is(err, atproto.ErrOAuthState):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid or expired OAuth state"})
 	case errors.Is(err, atproto.ErrOAuthResponse):
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "AT Protocol authorization server rejected the request"})
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "AT Protocol authorization server or PDS rejected the request"})
+	case errors.Is(err, atproto.ErrPublishingDisabled):
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "enable AT Protocol publication before syncing"})
 	case errors.Is(err, atproto.ErrConflict):
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 	case errors.Is(err, atproto.ErrNotLinked):
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "claim a Vuta or link an AT Protocol identity first"})
+	case errors.Is(err, atproto.ErrIndexedNotFound):
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "portable Vutame profile not found"})
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 	}
