@@ -55,7 +55,7 @@ CREATE TABLE follows (
   CHECK (follower_user_id <> following_user_id)
 );
 CREATE INDEX follows_follower_created_idx ON follows(follower_user_id, created_at DESC, following_user_id);
-CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, following_user_id);
+CREATE INDEX follows_following_created_idx ON follows(following_user_id, created_at DESC, follower_user_id);
 
 CREATE TABLE blocks (
   blocker_user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
@@ -315,7 +315,7 @@ CREATE TABLE atproto_jetstream_state (
 );
 
 CREATE TABLE billing_customers (
-  user_id TEXT PRIMARY KEY REFERENCES profiles(user_id) ON DELETE CASCADE,
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   provider TEXT NOT NULL DEFAULT 'stripe' CHECK (provider IN ('stripe')),
   customer_id TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL,
@@ -325,7 +325,7 @@ CREATE INDEX billing_customers_customer_idx ON billing_customers(customer_id);
 
 CREATE TABLE billing_subscriptions (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   provider TEXT NOT NULL DEFAULT 'stripe' CHECK (provider IN ('stripe')),
   provider_subscription_id TEXT NOT NULL UNIQUE,
   customer_id TEXT NOT NULL,
@@ -351,7 +351,7 @@ CREATE TABLE billing_events (
 CREATE INDEX billing_events_processed_idx ON billing_events(processed_at DESC);
 
 CREATE TABLE entitlement_grants (
-  user_id TEXT NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   feature TEXT NOT NULL,
   source TEXT NOT NULL CHECK (source IN ('admin', 'migration')),
   expires_at TEXT,
